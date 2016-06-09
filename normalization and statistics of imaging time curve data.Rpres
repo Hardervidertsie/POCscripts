@@ -1,0 +1,445 @@
+A practical methodology to normalization and statistics of time response imaging data
+========================================================
+author: ir. Steven Wink, PhD
+date: 13-06-2016
+
+Solutions to problematic / non- perfect imaging data:
+========================================================
+
+- replicate with overal lower or higher responses
+- saturation of imaging signals
+- signals from different reporters
+  - foci counts
+  - cytoplamsa  
+  - nuclei signal  
+  - counting cells above a certain threshold  
+- time dynamics and AUC  
+- varying time points  
+
+
+Multiple plates & time dynamics
+========================================================
+# met LaTeX equations
+#
+
+
+
+
+
+```{r generate data and figures ,echo = FALSE, eval = TRUE }
+setwd("C:/Users/steve_000/Documents/work/POC paper/presentation")
+
+require( ggplot2 )
+require( data.table )
+require( reshape2 )
+# generate data representing plate differences and difference in the dynamics of responses
+
+# the lower replicate 1, 30 time points, till 22 hours
+time_repl1 <- seq( 0.5, 22, length.out = 30 )
+control_rep1 <- abs( 0.06 + 0.007 * rnorm( 30 ) )
+treatlow_rep1 <- control_rep1 + control_rep1 * 0.015* time_repl1 + 0.005 * time_repl1^1.1
+
+
+
+# the early peak
+convolution_peak <-   1/( 1+  0.15*( time_repl1- 5 )^2)
+
+treatmid_rep1 <- control_rep1 + 0.2 * convolution_peak
+
+# the plateau response
+convolution_high<-  1/( 1+  0.015*( time_repl1- 22 )^2)
+
+
+
+treathigh_rep1 <- -0.1 + control_rep1 + 0.4*convolution_high + 0.005 * time_repl1^1.1 +  0.4*convolution_high * control_rep1 
+
+
+
+
+# replicate 2, the normal response, 22 time points, till 23 hours
+time_repl2 <- seq( 0.8, 23, length.out = 22 )
+control_rep2 <- abs( 0.16 + 0.011 * rnorm( 22 ) )
+treatlow_rep2 <- control_rep2 + control_rep2 * 0.022* time_repl2
+convolution_peak <-  1/( 1+  0.15*( time_repl2- 5 )^2)
+
+treatmid_rep2 <- control_rep2 + 0.3 * convolution_peak
+
+
+convolution_high<-  1/( 1+  0.010*( time_repl2- 21 )^2)
+
+convolution_high[ which(max(convolution_high) == convolution_high) : length( convolution_high )] <- max( convolution_high)
+plot(convolution_high)
+
+# addition of convolution term. addition of time dependent increase. and convolution multiplication term for increase in variance
+treathigh_rep2 <- control_rep2 -0.5 + 1*convolution_high  + 0.005 * time_repl2^1.2 + convolution_high * control_rep2 
+plot(treathigh_rep2)
+
+
+
+
+# the single mega high response and high variance replicate 3, 17 time points, till 24 hours
+time_repl3 <- seq( 0.8, 23, length.out = 22 )
+control_rep3 <- abs( 0.2 + 0.023 * rnorm( 22 ) )
+treatlow_rep3 <- control_rep3 + control_rep3 * 0.022* time_repl3
+convolution_peak <-  1/( 1+  0.15*( time_repl3- 5 )^2)
+treatmid_rep3 <- control_rep3+ 0.4 * convolution_peak
+
+convolution_high<-  1/( 1+  0.010*( time_repl3- 15 )^2)
+
+convolution_high[ which(max(convolution_high) == convolution_high) : length( convolution_high )] <- max( convolution_high)
+plot(convolution_high)
+
+# addition of convolution term. addition of time dependent increase. and convolution multiplication term for increase in variance
+treathigh_rep3 <- -0.55 + control_rep3  + 1*convolution_high  + 0.005 * time_repl3^1.2 + 1*convolution_high * control_rep3 
+plot(treathigh_rep3)
+
+
+image_data_rep1 <- data.frame( time = time_repl1, 
+                                control =  control_rep1,
+                               treatlow = treatlow_rep1,
+                               treatmid = treatmid_rep1,
+                               treathigh = treathigh_rep1,
+                                replID = "repl.1" 
+                              )
+
+
+image_data_rep2 <- data.frame( time = time_repl2, 
+                                control =  control_rep2,
+                              treatlow =  treatlow_rep2,
+                              treatmid = treatmid_rep2,
+                              treathigh = treathigh_rep2,
+                                replID = "repl.2" 
+                              )
+
+image_data_rep3 <- data.frame( time = time_repl3, 
+                                control =  control_rep3,
+                               treatlow = treatlow_rep3,
+                               treatmid = treatmid_rep3,
+                               treathigh = treathigh_rep3,
+                                replID = "repl.3" 
+                              )
+
+image_data <- rbind( image_data_rep1, image_data_rep2, image_data_rep3)
+
+image_data.l <- melt( image_data, id.vars = c("time", "replID"), variable.name = "treatment")
+
+plotFun <-function( Data , plotName ) {
+  p <- ggplot( data = Data, aes( x = time, y = value )) + geom_point( aes(  color = replID), size = 6 ) +
+    theme_minimal(base_size = 55) + ylim(c(-0.1,1.1)) + facet_grid( treatment~.) + 
+    geom_smooth( aes( group = replID, color = replID  ) , span = 0.5,  se = FALSE, size = 1, alpha = 0.01) 
+     
+  png(paste("figures/",plotName, ".png", sep = ""), width = 2000, height = 2000)
+    print( p )
+dev.off()
+
+}
+
+
+# raw data
+plotFun( Data = image_data.l, plotName = "rawdata")
+
+# plate with unhappy cells
+
+image_data.l<- as.data.table(image_data.l)
+
+plotFun( Data = image_data.l[ replID == "repl.1"], plotName = "rawdata_unhappy")
+
+plotFun( Data = image_data.l[ replID == "repl.2"], plotName = "rawdata_normal")
+
+plotFun( Data = image_data.l[ replID == "repl.3"], plotName = "rawdata_highoutlier")
+
+
+
+# linear normalization mean:
+
+image_data.l <- as.data.table(image_data.l)
+
+plateMeans <- image_data.l[, mean( value ), by = "replID"]
+
+image_data.l[  , meanShift :=  value ]
+image_data.l[ replID == "repl.1" , meanShift := value + ( plateMeans$V1[2] - plateMeans$V1[1] ) ]  
+image_data.l[ replID == "repl.3" , meanShift := value + ( plateMeans$V1[2] - plateMeans$V1[3] )   ]
+
+head(image_data.l)
+
+image_data.meanshift <- melt( image_data.l, id.vars = c("time", "replID", "treatment"))
+image_data.meanshift 
+
+# define plotting function for extra side panel with normalized values
+plotFunNorm <-function( Data , plotName ) {
+  p <- ggplot( data = Data, aes( x = time, y = value )) + geom_point( aes(  color = replID), size = 6 ) +
+    theme_minimal(base_size = 55)  + facet_grid( treatment~variable) + 
+    geom_smooth( aes( group = replID, color = replID  ) , span = 0.5,  se = FALSE, size = 1, alpha = 0.01) 
+     
+  png(paste( "figures/",plotName, ".png", sep = ""), width = 2000, height = 2000 )
+    print( p )
+dev.off()
+
+}
+
+plotFunNorm( Data =  image_data.meanshift, plotName = "meanShift" )
+
+# standard normal normalization:
+
+image_data.l[, meanShift:=NULL]
+image_data.l[ , plateMean := mean( value ), by = replID]
+image_data.l[ , plateSd := sd( value ), by = replID]
+image_data.l[ , standardNormal := ( value - plateMean )/ plateSd , by = replID]
+image_data.l[, plateMean := NULL ]
+image_data.l[ , plateSd := NULL ]
+image_data.sdNorm <- melt( image_data.l, id.vars = c("time", "replID", "treatment"))
+
+plotFunNorm( Data = image_data.sdNorm, plotName = "standardNormalized")
+
+image_data.l[, standardNormal:=NULL]
+
+
+# control background subtraction
+
+controlMeans <- image_data.l[ treatment == "control" ,  mean( value ), by = replID  ]
+setkey( controlMeans, replID )
+setkey( image_data.l, replID )
+image_data.controlSub <- controlMeans[ image_data.l ]
+image_data.controlSub[ , controlSubValue := value - V1 ]
+image_data.controlSub[, V1 :=NULL ]
+image_data.controlSub <- melt( image_data.controlSub, id.vars = c( "time", "replID", "treatment" ) )
+
+plotFunNorm( Data = image_data.controlSub, plotName = "controlSub" )
+
+
+# min max normalization
+
+minmaxFun <- function(x) { 
+                          min_e = min( x, na.rm = TRUE )
+                          max_e = max( x, na.rm = TRUE )
+                          y <- ( x - min_e ) / ( max_e - min_e )
+                          y
+                          }
+
+
+image_data.l[,  minmaxNorm := minmaxFun( value ), by = replID ]
+image_data.minmaxNorm <- melt( image_data.l, id.vars = c("time", "replID", "treatment"))
+plotFunNorm( Data = image_data.minmaxNorm , plotName = "minmaxNorm")
+image_data.l[ , minmaxNorm := NULL ]
+
+
+
+# fold change with respect to control normalization
+buffer <- image_data.l[ treatment == "control" ,  value, by = list( replID, time ) ]
+controlValues <- buffer[ time %in% c(0.5, 0.8 ), value  , by = replID]
+setkey(image_data.l, replID)
+setkey( controlValues, replID)
+foldChangeNorm <- controlValues[ image_data.l]
+
+foldChangeNorm[ , foldChangeVal := i.value / value]
+foldChangeNorm[, value := NULL]
+setnames(foldChangeNorm, "i.value", "value")
+foldChangeNorm <- melt( foldChangeNorm, id.vars = c("time", "replID", "treatment"))
+plotFunNorm( Data =  foldChangeNorm, plotName = "foldChangeVal")
+
+
+# quantile normalization
+# first fitting and resampling of time points
+for( i in seq_along(my.data.response.list)){
+  
+  fm1 <- lm(value ~ ns(timeAfterExposure, df =6), data = my.data.response.list[[i]])
+  
+    model.results[[i]] <-  predict(fm1, dtTime<-data.frame(
+    timeAfterExposure = round(seq(0.5,24, length.out=200), digits=2)))
+    model.results[[i]] <- as.data.frame(model.results[[i]] )
+    colnames(model.results[[i]])<- "mod"
+   
+    model.results[[i]]$cell_line <- unique(my.data.response.list[[i]]$cell_line)  
+    model.results[[i]]$treatment <- unique(my.data.response.list[[i]]$treatment)
+    model.results[[i]]$dose_uM <- unique(my.data.response.list[[i]]$dose_uM)
+    model.results[[i]]$replID <- unique(my.data.response.list[[i]]$replID)
+    model.results[[i]]$timeAfterExposure <- dtTime$timeAfterExposure
+    model.results[[i]]$resid.SD <- sqrt(deviance(fm1)/df.residual(fm1))
+   
+       p <- ggplot(data =  model.results[[i]], aes(x=timeAfterExposure, y = mod)) + geom_point() + 
+           geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = value, color = replID)) + 
+     ggtitle(unique(my.data.response.list[[i]]$splitL)) + ylim(c(-0.1,1.1))
+   
+ 
+
+}
+
+
+head(model.results[[3]])
+model.results.df <- do.call("rbind", model.results)
+min(model.results.df$mod)
+### quantile stats insertie
+model.results.df <- as.data.table( model.results.df)
+selTP <- unique(model.results.df[, timeAfterExposure])[seq(1,  200, by = 9)]
+
+model.results.df <- model.results.df[ timeAfterExposure %in% selTP]
+
+
+model.results.df[, .N, by = list(cell_line, treatment,dose_uM, replID)]
+table(model.results.df$treatment)
+
+quantileOrigList <- split(model.results.df, model.results.df$replID)
+ # sort per plate
+
+head(quantileOrigList[[1]])
+
+quantileOrigIndex <- lapply(quantileOrigList, function(x) rank( x$mod ) )
+
+quantileSorted <- lapply( quantileOrigList, function(x) sort(x$mod))
+head(cbind(quantileSorted[[1]][quantileOrigIndex[[1]]] ,quantileOrigList[[1]])  )
+
+head(quantileSorted.df)
+quantileSorted.df <- do.call('cbind', quantileSorted)
+newValues <- rowMeans(quantileSorted.df)
+plot(newValues)
+
+head(quantileSorted.df)
+# put values back to original locations
+
+for( i in seq_along(quantileOrigList)) {
+
+  quantileOrigList[[i]]$quantileNorm <- newValues[quantileOrigIndex[[i]]]
+  
+  }
+
+model.results.df <- do.call('rbind', quantileOrigList)
+
+
+# statistics
+
+
+# rest
+image_data.l <- melt( image_data, id.vars = c("time", "replID"), variable.name = "treatment")
+
+
+
+
+
+
+
+# 
+#  
+# warnings()
+# with( image_data_rep1,
+#   plot( 
+#     x = time, y = value, ylim = c( 0, 1 ) , main = "control replicate 1", legend = TRUE
+#       )
+# )
+# legend(x = 15, y = 0.8, legend = c( "green: replicate 1\n", "etet" ), fill = c("red", "blue"))
+# 
+# ?plot
+# ?legend
+
+```
+
+
+
+
+
+Test set data: the problems are numerous
+========================================================
+![](presentation/figures/rawdata.png)
+***
+hi
+
+
+
+The plate with unhappy cells
+========================================================
+
+![](presentation/figures/rawdata_unhappy.png)
+***
+overal lower responses
+
+
+The near perfect plate
+========================================================
+
+![](presentation/figures/rawdata_normal.png)
+***
+Well-calibrated imaging session, highest response level does not reach a plateau.
+Low-level responses are still visible.
+
+
+The "I should have done this one over" plate
+========================================================
+![](presentation/figures/rawdata_highoutlier.png)
+***
+High variance, low amount of time points, high-level response reaches plateau very early: does not capture
+entire dynamic range. 
+
+
+Linear normalization of plates leads to high variance
+========================================================
+![](presentation/figures/linearNorm.png)
+***
+
+
+
+
+$\Huge \frac{1}{n} \sum_{i=i}^{n} x_{i}$
+
+
+Min max plate normalization does not increase variance stabilization.
+========================================================
+
+
+
+Background subtraction does not lead to stable variance of high level responses.
+========================================================
+
+
+
+Linear normalization methods leads to high variance.
+========================================================
+
+
+***
+Because the dynamics is different because of:
+- plateau reach
+- difference in laser settings do not lead to linear increase in background level
+- difference in laser settings do lead to linear increase in higher responses.
+
+
+standard normal normalization
+========================================================
+
+***
+
+- Often used normalization method
+- Data looks much better, statistics would make sense.
+- Confusing for interpretation, below zero, above 1
+- A solution would be to use the sd-normal for statistics, but not for display
+
+
+Quantile normalization
+========================================================
+
+
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+
+Duidelijk maken dat: 
+DMSO subtractie niet werkt in dit geval
+wat er gebeurt bij min max schalen
+wat er gebeurt bij fold change tov controle
+wat er gebeurt als niet mean residual sd meeneemnt
+wat er gebeurt als AUC
+
+links 4 grafieken. rechts de 4 grafieken met procedure.  3 curves per grafiek (replicates)
+de replicates: 1tje lager, maar wel naar plateau
+
+1 replicate dat overal lager is
+1) controles
+2) 
+
+
+Future work
+========================================================
+
+- In 3 dimensions: time, dose and significance of responses: 3D plots with significance shading.
+
+
