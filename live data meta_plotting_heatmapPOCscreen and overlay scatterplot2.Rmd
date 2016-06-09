@@ -1,21 +1,32 @@
 
 
+<<<<<<< HEAD
 # statistiek doen voor replicate figuren
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 figures for POC paper
 
 ```{r}
 rm(list=ls())
+<<<<<<< HEAD
 setwd("E:/bckup 20 febr 2015/POC meta analyse/full")
+=======
+setwd("D:/POC/POC meta analyse/full")
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 require(ggplot2)
 require(NMF)
 require(stringr)
 require(data.table)
 require(grid)
+<<<<<<< HEAD
 
 source("C:\\Users\\steve_000\\Documents\\H5CellProfiler\\H5CellProfiler\\theme_sharp.R")
 
+=======
+source("D:/R_HOME/R_WORK/R scipts/theme_sharp.R")
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 options(stringsAsFactors=FALSE)
 all.files <- dir("summary files")
 
@@ -224,17 +235,23 @@ which(!unlist(lapply(data.raw, function(x) all(  names(x) %in% coln ))))
 
 
 data.raw.dt<- do.call("rbind", data.raw)
+<<<<<<< HEAD
 
 
 
 #data.raw.dt[ treatment %in% "DMSO" , meanPlateDMSO := mean( meanSummaryStat, na.rm = TRUE ) , by = list(treatment, cell_line, timeAfterExposure, plateID) ]
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 data.raw.dt[, minmaxNorm:= (meanSummaryStat - min(meanSummaryStat,na.rm=TRUE))/ 
               (max(meanSummaryStat, na.rm=TRUE) - min(meanSummaryStat,na.rm=TRUE)),
             by= list(plateID, variable)]
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 unique(data.raw.dt[, plateID])
 
 data.raw.dt[,timeAfterExposure:= as.numeric(timeAfterExposure)]
@@ -327,6 +344,7 @@ my.data.response[, minmaxNorm:=NULL]
 unique( my.data.response$plateID)
 
 DMSO.mean <- my.data.response[ treatment %in% "DMSO", 
+<<<<<<< HEAD
                                 mean(meanSummaryStat, na.rm= TRUE),
                                by = c("plateID", "cell_line", "variable", "timeAfterExposure")]
 
@@ -338,6 +356,16 @@ setkeyv(my.data.response, c("plateID", "cell_line", "variable", "timeAfterExposu
 my.data.response<-my.data.response[DMSO.mean]
 
 
+=======
+                                mean(meanSummaryStat, na.rm= TRUE)
+                               ,
+                               by = c("plateID", "variable", "timeAfterExposure")]
+setnames(DMSO.mean, old = "V1", new = "DMSO.mean")
+setkeyv(DMSO.mean, c("plateID", "variable", "timeAfterExposure"))
+setkeyv(my.data.response, c("plateID", "variable", "timeAfterExposure"))
+
+my.data.response<-my.data.response[DMSO.mean]
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 # for which variables does subtracting DMSO make sense? try all
 unique(my.data.response$variable)
 
@@ -345,6 +373,7 @@ my.data.response[, DMSO.sub.Value:= meanSummaryStat - DMSO.mean]
 
 
 
+<<<<<<< HEAD
 
 
 ###
@@ -353,13 +382,18 @@ my.data.response[, minmaxNorm:= minmaxFun(DMSO.sub.Value), by= list(cell_line, p
 
 plot(density(my.data.response[ replID == "repl.2", minmaxNorm]))
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 my.data.response[, minmaxNorm:= (DMSO.sub.Value - min(DMSO.sub.Value,na.rm=TRUE))/ 
               (max(DMSO.sub.Value, na.rm=TRUE) - min(DMSO.sub.Value,na.rm=TRUE)),
             by= list(plateID, variable, cell_line)]
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 #collapse time, choose 1 before last tp. remove last point, then choose max point
 
 head(my.data.response)
@@ -398,11 +432,19 @@ my.data.response[, cell_line := gsub("BTG2" , "Btg2", cell_line)]
 
 
 p<-ggplot( my.data.response, aes(x=timeAfterExposure, y = minmaxNorm, color = replID)) +
+<<<<<<< HEAD
   geom_point(aes(group = replID )) + theme_sharp()
 
 
 p <- p + facet_grid( treat.dose~cell_line) 
 p 
+=======
+  geom_line(aes(group = replID )) + theme_sharp()
+
+
+p <- p + facet_grid( treat.dose~cell_line)
+p
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 
 require(splines)
@@ -410,12 +452,16 @@ require(stats); require(graphics)
 
 # loop over each cell line treatment dose combination for b-spline model. store and plot for qc. use model data for plotting means and for heatmap
 
+<<<<<<< HEAD
 unique(my.data.response[, list(variable, cell_line)])
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 my.data.response$splitL <- paste(my.data.response$cell_line , my.data.response$treatment, my.data.response$dose_uM,my.data.response$replID )
 my.data.response.list <- split(my.data.response, c(my.data.response$splitL))
 
 model.results = list()
+<<<<<<< HEAD
 zeh.path <- "C:/Users/steve_000/Documents/work/POC paper"
 dir.create("C:/Users/steve_000/Documents/work/POC paper/model fit graphs")
 # default: df 6 range 0,24
@@ -428,6 +474,16 @@ for( i in seq_along(my.data.response.list)){
     model.results[[i]] <-  predict(fm1, dtTime<-data.frame(
     
     timeAfterExposure = round(seq(0, 24, length.out=200), digits=2))) # variabele tijd.
+=======
+dir.create("model fit graphs")
+pdf(file = paste("model fit graphs/model fit graphs.pdf", sep =""), height = 6, width = 6)
+for( i in seq_along(my.data.response.list)){
+  
+  fm1 <- lm(minmaxNorm ~ bs(timeAfterExposure, df =6), data = my.data.response.list[[i]])
+  model.results[[i]] <-  predict(fm1, dtTime<-data.frame(
+    
+    timeAfterExposure = round(seq(0, 20, length.out=200), digits=2))) # variabele tijd.
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
     model.results[[i]] <- as.data.frame(model.results[[i]] )
     colnames(model.results[[i]])<- "mod"
    
@@ -435,6 +491,7 @@ for( i in seq_along(my.data.response.list)){
     model.results[[i]]$treatment <- unique(my.data.response.list[[i]]$treatment)
     model.results[[i]]$dose_uM <- unique(my.data.response.list[[i]]$dose_uM)
     model.results[[i]]$replID <- unique(my.data.response.list[[i]]$replID)
+<<<<<<< HEAD
     model.results[[i]]$timeAfterExposure <- dtTime$timeAfterExposure
     model.results[[i]]$resid.SD <- sqrt(deviance(fm1)/df.residual(fm1))# residual standard error, as a means to capture variability of datapoints
     
@@ -445,10 +502,20 @@ for( i in seq_along(my.data.response.list)){
    # ggtitle(unique(my.data.response.list[[i]]$splitL)) + ylim(c(0,1))
   
   #print(p)
+=======
+      model.results[[i]]$timeAfterExposure <- dtTime$timeAfterExposure
+  
+      p <- ggplot(data =  model.results[[i]], aes(x=timeAfterExposure, y = mod)) + geom_point() + 
+          geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = minmaxNorm, color = replID)) + 
+    ggtitle(unique(my.data.response.list[[i]]$splitL)) + ylim(c(0,1))
+  
+  print(p)
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 }
 dev.off()
 
+<<<<<<< HEAD
 # getwd()
 
 
@@ -456,11 +523,14 @@ dev.off()
 
 #load(paste(zeh.path, "/freeze10mei2016.RData", sep = ""))
 
+=======
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 my.data.response[, max(timeAfterExposure), by = plateID]
 
 
 head(model.results[[3]])
 model.results.df <- do.call("rbind", model.results)
+<<<<<<< HEAD
 head(model.results.df)
 require(plyr)
 
@@ -695,17 +765,29 @@ model1 <- lm(meandiff ~ source, data = difference)
    
 
 model.results.df.m <- ddply(model.results.df, .(cell_line, treatment, dose_uM, timeAfterExposure, dose.f),
+=======
+require(plyr)
+model.results.df.m <- ddply(model.results.df, .(cell_line, treatment, dose_uM, timeAfterExposure),
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
       summarize, meanR = mean(mod, na.rm = TRUE))
 
 head(model.results.df.m)
 
+<<<<<<< HEAD
 my.data.response$splitL <- paste(my.data.response$cell_line , my.data.response$treatment, my.data.response$dose_uM )
 my.data.response.list <- split(my.data.response, my.data.response$splitL)
+=======
+
+
+my.data.response$splitL <- paste(my.data.response$cell_line , my.data.response$treatment, my.data.response$dose_uM )
+my.data.response.list <- split(my.data.response, c(my.data.response$splitL))      
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 model.results.df.m$splitL <- paste(model.results.df.m$cell_line , model.results.df.m$treatment, model.results.df.m$dose_uM )
 model.results.l.m <- split(model.results.df.m, model.results.df.m$splitL)
 
 
+<<<<<<< HEAD
 model.results.l.m[[5]]
 my.data.response.list[[5]]
 
@@ -716,10 +798,19 @@ pdf(file = paste( save.path, "model fit graphs means/model fit graphs means_over
        p <- ggplot(data =  model.results.l.m[[i]], aes(x=timeAfterExposure, y = meanR)) + geom_point() + 
           geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = minmaxNorm, color = replID)) + 
     ggtitle(unique(  c(my.data.response.list[[i]]$splitL),  unique( model.results.l.m[[i]]$splitL))) + ylim(c(0,1))
+=======
+     dir.create("model fit graphs means")
+pdf(file = paste("model fit graphs means/model fit graphs means.pdf", sep =""), height = 6, width = 6) 
+      for(i in seq_along(model.results.l.m)){
+       p <- ggplot(data =  model.results.l.m[[i]], aes(x=timeAfterExposure, y = meanR)) + geom_point() + 
+          geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = minmaxNorm, color = replID)) + 
+    ggtitle(unique(my.data.response.list[[i]]$splitL)) + ylim(c(0,1))
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
   print(p)
     }
 dev.off()
   
+<<<<<<< HEAD
 
 # results of model stored in:
 class(model.results.df.m)
@@ -743,11 +834,37 @@ class(model.results.df.m)
 #                             model.results.df.m$cell_line == counts.d$cell_line[i]] <- gl(counts.d$count.d.l[i], 1)
 #   
 # }
+=======
+      
+# results of model stored in:
+head(model.results.df.m)
+
+# create dose levels
+ head(model.results.df.m)
+model.results.df.m$dose_uM <- as.numeric(model.results.df.m$dose_uM)  
+model.results.df.m <- model.results.df.m[  order( model.results.df.m[ , "cell_line"],
+                                                          model.results.df.m[ , "treatment"],
+                                                   model.results.df.m[ , "dose_uM"]),   ]
+  
+counts.d <- ddply(model.results.df.m, .(cell_line, treatment,timeAfterExposure ), summarize,count.d.l = length(dose_uM))
+head(counts.d)
+
+model.results.df.m$dose.f <- NA
+for (i in 1 : nrow(counts.d))
+{
+  
+  model.results.df.m$dose.f[ model.results.df.m$treatment == counts.d$treatment[i] & 
+                      model.results.df.m$timeAfterExposure == counts.d$timeAfterExposure[i] &
+                            model.results.df.m$cell_line == counts.d$cell_line[i]] <- gl(counts.d$count.d.l[i], 1)
+  
+}
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 model.results.df.m[190:210,]
 model.results.df.m$dose.f<- as.factor(model.results.df.m$dose.f)
 # mean of reps
 
+<<<<<<< HEAD
 #save.image("freeeze15052016.Rdata")
 head(stats.out.data.df)
 head(model.results.df.m)
@@ -791,6 +908,14 @@ stats.out.data.df[ cell_line == "CHOP"]
 stats.out.data.df[ treatment %in% "Thapsigargin" & cell_line == "CHOP"]
 
 ?geom_text
+=======
+p<-ggplot( model.results.df.m, aes(x=timeAfterExposure, y = meanR, color = dose.f)) +
+  geom_line(aes(group = dose.f ), size = 2) + theme_sharp()
+
+p <- p + facet_grid( treatment~cell_line)
+p
+
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 unique(model.results.df.m[ , c("cell_line", "treatment", "dose_uM", "dose.f")])
 
 
@@ -847,6 +972,11 @@ length(colBreaks)
 #replace Nrf2 stauro by mean of resp. rows to be able to cluster. Replace by NA afterwards
 
 
+<<<<<<< HEAD
+=======
+?aheatmap
+head(model.results.df.m)
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 # the order of the rows is according to the mean values over time of the cell line / treat.dose matrix: (this was unsatisfactory)
 # model.results.df.m.time <- ddply(model.results.df.m, .(cell_line, treatment, dose_uM, treat.dose), 
 #                                  summarize, meanT = mean(meanR, na.rm=TRUE))
@@ -968,12 +1098,20 @@ dist.treat.dose[[1]]
 dim(dist.treat.dose[[11]])
 
 dist.treat.dose <- lapply(dist.treat.dose, function(x) x<- as.matrix(x))
+<<<<<<< HEAD
 my.array<- array(unlist(dist.treat.dose), c(27,27,11))
+=======
+my.array<- array(unlist(dist.treat.dose), c(28,28,11))
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 
 
 lapply(dist.treat.dose,  dim)
+<<<<<<< HEAD
 11*27*27-length(unlist(dist.treat.dose))  
+=======
+11*28*28-length(unlist(dist.treat.dose))  
+>>>>>>> 8012e3a67319ab67bb29288a9e132664b1ff1669
 
 dist.treat.dose.df <- apply(my.array, 1:2, mean)
 rownames(dist.treat.dose.df) <- rownames(dist.treat.dose[[1]])
