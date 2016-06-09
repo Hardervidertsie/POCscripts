@@ -1,0 +1,1074 @@
+
+ 25 mei 2016:
+loop door script heen. 
+pas normalizatie aan, zelfde als voor model compounds: quantile
+dus eerst minmax, dan quantile. dan statistiek, dan shit plotten (HM & tijd-curves)
+
+
+
+```{r}
+rm(list=ls())
+setwd("E:/POC screen/full")
+
+require(ggplot2)
+require(NMF)
+require(stringr)
+require(data.table)
+require(grid)
+source("D:/R_HOME/R_WORK/R scipts/theme_sharp.R")
+options(stringsAsFactors=FALSE)
+
+#load("workspace latest heatmaps 17032015.Rdata")
+all.files <- dir("top10 TGP")
+
+all.paths <- as.list(paste("top10 TGP", all.files, sep = "/"))
+
+cellineStr<-lapply(all.paths, str_match,"( [A-Z a-z 0-9]{3,15}).txt")
+
+cellineStr<-lapply(cellineStr, "[[",2)
+cellineStr <- lapply(cellineStr, gsub, pattern=' ', replacement='')
+
+plateStr <- lapply(all.paths, str_match, "[0-9]{4}_[0-9]{2}_[0-9]{2}_n[i]{2,3} myData_summarized[ A-Z a-z 0-9 _ -]{1,28}.txt")
+plateStr<- lapply(plateStr, gsub, pattern ='.txt' , replacement ='')
+plateStr<- lapply(plateStr, gsub, pattern =' myData_summarized' , replacement ='')
+
+names(all.paths)<-plateStr
+
+
+# read in data:
+data.raw=list()
+  for(i in seq_along(all.paths)){
+    print(i)
+    data.raw[[i]] <- fread(all.paths[[i]], sep ="\t", header = TRUE)
+    
+    }
+#verify cell line inside and out
+
+
+for( i in seq_along(all.paths)){
+print(i)
+  print(paste(all.paths[i],unique(data.raw[[i]]$cell_line), sep ="___"))
+print(cellineStr[i])
+}
+
+# fix all inconsistancies accros datasets.
+   # fix cell line names:
+for( i in seq_along(data.raw)){
+  data.raw[[i]]$cell_line <- cellineStr[i]
+}
+
+
+# fix / standardize all compound names & remove compounds not of interest:
+
+all.comps<- lapply(data.raw, "[[", "treatment")
+all.comps<-unlist(all.comps)
+all.comps<- unique(all.comps)
+
+# fix inconsisten comp names
+sort(all.comps)
+
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("2,4 dinitrophenol", "2,4-dinitrophenol", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("WY-14364", "WY-14643", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Cyclosporin", "Cyclosporin A", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("CyclosporinA", "Cyclosporin A", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Cyclosporin AA", "Cyclosporin A", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Danazole", "Danazol", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Dem", "DEM", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("DMSO 0.2%", "DMSO", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("DMSO 0.4%", "DMSO", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Iodoacetamine", "Iodoacetamide", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Iodoacteamide", "Iodoacetamide", treatment ) ]
+}
+for(i in seq_along(data.raw)){
+data.raw[[i]][ , treatment:= gsub("Iodoactemide", "Iodoacetamide", treatment ) ]
+}
+
+all.comps<- lapply(data.raw, "[[", "treatment")
+all.comps<-unlist(all.comps)
+all.comps<- unique(all.comps)
+
+# fix inconsisten comp names
+sort(all.comps)
+
+lapply(data.raw, function(x) unique(x$treatment))
+
+all.comps<- lapply(data.raw, "[[", "treatment")
+all.comps<-unlist(all.comps)
+all.comps<- unique(all.comps)
+
+
+# fix feature data
+all.feats <- unique(unlist(lapply(data.raw,"[[","variable")))
+countInd <- grepl("count", all.feats)
+all.feats[!countInd]
+#data.raw
+lapply(data.raw, names)
+lapply(data.raw,function(x) length(names(x)))
+data.raw[[5]][, control:=NULL]
+
+
+#  [1] "imageCountTracked"                                           "obj_nc_Intensity_IntegratedIntensity_img_gfp"               
+#  [3] "obj_nc_Intensity_MeanIntensity_img_nc"                       "obj_nc_AreaShape_Area"                                      
+#  [5] "obj_nc_Intensity_MeanIntensity_img_gfp"                      "obj_nc_TrackObjects_DistanceTraveled_80"                    
+#  [7] "min_maxNorm_obj_nc_Intensity_MeanIntensity_img_gfp"          "Cytoplasm_Intensity_IntegratedIntensity_img_gfp"            
+#  [9] "Cytoplasm_Intensity_MeanIntensity_img_gfp"                   "min_maxNorm_Cytoplasm_Intensity_IntegratedIntensity_img_gfp"
+#  [11] "obj_nc_TrackObjects_DistanceTraveled_60"              
+
+unique(unlist(lapply(data.raw, function(x) (unique(x$variable))  )))
+#####
+
+
+lapply(data.raw, function(x) {
+  x[, variable:= gsub("(.*_larger_[0-9 .]{2,5}_m2sd)$", "m2sd", variable)]
+  }
+  )
+
+
+lapply(data.raw, function(x) {
+    x[, variable:= gsub("(.*_larger_[0-9 .]{2,6}_3m)$", "3m", variable)]
+  }
+  )
+
+
+lapply(data.raw, function(x) {
+    x[, variable:= gsub("(.*_larger_[0-9 .]{2,5}_2m)$", "2m", variable)]
+  }
+  )
+
+lapply(data.raw, function(x) {
+    x[, variable:= gsub("obj_nc", "nuclei", variable)]
+  }
+  )
+
+
+convertToo1<- "Cell Number"  
+convert1 <- c("imageCountTracked")
+
+convertToo2 <- "cell speed"
+convert2<- c("nuclei_TrackObjects_DistanceTraveled_80", "nuclei_TrackObjects_DistanceTraveled_60")
+
+convertToo3 <- "norm_gfp_int"
+convert3<- c("min_maxNorm_Cytoplasm_Intensity_IntegratedIntensity_img_gfp", 
+             "min_maxNorm_nuclei_Intensity_MeanIntensity_img_gfp")
+
+
+
+for( i in seq_along(convert1)){
+  data.raw<-lapply( data.raw, function(x) {
+  x[, variable:= gsub(convert1[i], convertToo1,variable)]
+  })
+  }  
+  
+for( i in seq_along(convert2)){
+  data.raw<-lapply( data.raw, function(x) {
+  x[, variable:= gsub(convert2[i], convertToo2,variable)]
+  })
+  } 
+for( i in seq_along(convert3)){
+  data.raw<-lapply( data.raw, function(x) {
+  x[, variable:= gsub(convert3[i], convertToo3,variable)]
+  })
+  } 
+
+
+data.raw.dt<- do.call("rbind", data.raw)
+unique(data.raw.dt$plateID)
+
+unique(unlist(lapply(data.raw, function(x) x[, plateID])))
+
+plates <- c("20140312_nii", "20140312_niii", "20140319_nii", "20140403_nii", "20140403_niii")
+data.raw.dt[, replID:= NULL]
+data.raw.dt[, replID:= "pasta"]
+
+for(i in seq_along(plates)) {
+data.raw.dt[ cell_line %in% "CDKN1A" & 
+               plateID %in% plates[i],
+             replID:= paste("repl.", i)]
+}
+for(i in seq_along(plates)) {
+data.raw.dt[ cell_line %in% "DDIT3" & 
+               plateID %in% plates[i],
+             replID:= paste("repl.", i)]
+}
+for(i in seq_along(plates)) {
+data.raw.dt[ cell_line %in% "HSPA5" & 
+               plateID %in% plates[i],
+             replID:= paste("repl.", i)]
+}
+for(i in seq_along(plates)) {
+data.raw.dt[ cell_line %in% "SRXN1" & 
+               plateID %in% plates[i],
+             replID:= paste("repl.", i)]
+}
+
+sum(data.raw.dt[, replID == "pasta"]) # checken of niks gemist heb
+
+
+
+# Changes to concentrations POC follow-up  			
+# 	Plate lay out	Used conc. 	% DMSO	
+# Propylthiouracil 	4000	1820	0.4	
+# Captopril	8000	1776	0.4	
+# Tacrine	80	37.38	0.2	
+				# mistakes in layout, have been fixed. quick fix for data in R:
+data.raw.dt[ treatment %in% "Propylthiouracil", "dose_uM" ] <- 1800
+data.raw.dt[ treatment %in% "Captopril", "dose_uM" ] <- 1800
+data.raw.dt[ treatment %in% "Tacrine", "dose_uM" ] <- 37
+
+unique(data.raw.dt[, treatment])
+
+data.raw.dtBKUP <- data.raw.dt
+#data.raw.dt <- data.raw.dtBKUP
+#rm("data.raw.dt")
+# layout file mistakes in last 2 plates. Layouts have been fixed, quick fix for data in R:
+# check if layouts nii and niii are the same. then modify 1 and fix
+ind_Fluphenazine<- data.raw.dt$treatment %in% "Metformin" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") 
+sum(ind_Fluphenazine)
+data.raw.dt[ ind_Fluphenazine , "treatment"] <- "Fluphenazine"
+data.raw.dt[ ind_Fluphenazine , "dose_uM"] <- 20
+
+ind_Indomethacin<- data.raw.dt$treatment %in% "Danazol" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") 
+sum(ind_Indomethacin)
+data.raw.dt[ ind_Indomethacin , "treatment"] <- "Indomethacin"
+data.raw.dt[ ind_Indomethacin , "dose_uM"] <- 200
+
+ind_Danazol <- data.raw.dt$treatment %in% "Indomethacin" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_Indomethacin
+sum(ind_Danazol)
+data.raw.dt[ ind_Danazol, "treatment"] <- "Danazol"
+data.raw.dt[ ind_Danazol, "dose_uM"] <- 35
+
+ind_Nefazodone <- data.raw.dt$treatment %in% "Venlafaxine" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") 
+sum(ind_Nefazodone)
+data.raw.dt[ ind_Nefazodone, "treatment"] <- "Nefazodone"
+data.raw.dt[ ind_Nefazodone, "dose_uM"] <- 30
+
+ind_Cyclosporin <- data.raw.dt$treatment %in% "Fluphenazine" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_Fluphenazine
+sum(ind_Cyclosporin)
+data.raw.dt[ ind_Cyclosporin, "treatment"] <- "Cyclosporin A"
+data.raw.dt[ ind_Cyclosporin, "dose_uM"] <- 6
+
+ind_dinitrophenol <- data.raw.dt$treatment %in% "Nefazodone" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_Nefazodone
+sum(ind_dinitrophenol)
+data.raw.dt[ ind_dinitrophenol, "treatment"] <- "2,4-dinitrophenol"
+data.raw.dt[ ind_dinitrophenol, "dose_uM"] <- 100
+
+ind_WY_14643 <- data.raw.dt$treatment %in% "Cyclosporin A" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_Cyclosporin
+sum(ind_WY_14643)
+data.raw.dt[ ind_WY_14643, "treatment"] <- "WY-14643"
+data.raw.dt[ ind_WY_14643, "dose_uM"] <- 150
+
+ind_Metformin <- data.raw.dt$treatment %in% "2,4-dinitrophenol" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_dinitrophenol
+sum(ind_Metformin)
+data.raw.dt[ ind_Metformin, "treatment"] <- "Metformin"
+data.raw.dt[ ind_Metformin, "dose_uM"] <- 1000
+
+ind_Thioridazine <- data.raw.dt$treatment %in% "WY-14643" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_WY_14643
+sum(ind_Thioridazine)
+data.raw.dt[ ind_Thioridazine, "treatment"] <- "Thioridazine"
+data.raw.dt[ ind_Thioridazine, "dose_uM"] <- 15
+
+ind_Captopril <- data.raw.dt$treatment %in% "Thioridazine" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_Thioridazine
+sum(ind_Captopril)
+data.raw.dt[ ind_Captopril, "treatment"] <- "Captopril"
+data.raw.dt[ ind_Captopril, "dose_uM"] <- 1800
+
+ind_Venlafaxine <- data.raw.dt$treatment %in% "Iodoacetamide" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") 
+sum(ind_Venlafaxine)
+data.raw.dt[ ind_Venlafaxine, "treatment"] <- "Venlafaxine"
+data.raw.dt[ ind_Venlafaxine, "dose_uM"] <- 1200
+
+ind_DMSO_0.2 <- data.raw.dt$treatment %in% "Captopril" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_Captopril
+sum(ind_DMSO_0.2)
+data.raw.dt[ ind_DMSO_0.2, "treatment"] <- "DMSO"
+data.raw.dt[ ind_DMSO_0.2, "dose_uM"] <- 0.2
+
+ind_DMSO_0.4 <- data.raw.dt$treatment %in% "DMSO" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_DMSO_0.2 &
+    data.raw.dt$dose_uM %in% 0.2
+sum(ind_DMSO_0.4)
+data.raw.dt[ ind_DMSO_0.4, "treatment"] <- "DMSO"
+data.raw.dt[ ind_DMSO_0.4, "dose_uM"] <- 0.4
+
+ind_DMSO_DMEM <- data.raw.dt$treatment %in% "DMSO" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_DMSO_0.4 &
+  data.raw.dt$dose_uM %in% 0.4
+sum(ind_DMSO_DMEM)
+data.raw.dt[ ind_DMSO_DMEM, "treatment"] <- "DMEM"
+data.raw.dt[ ind_DMSO_DMEM, "dose_uM"] <- 0
+
+ind_Iodoacetamide <- data.raw.dt$treatment %in% "DMEM" & data.raw.dt$plateID %in% c("20140403_nii", "20140403_niii") & !ind_DMSO_DMEM
+sum(ind_Iodoacetamide)
+data.raw.dt[ ind_Iodoacetamide, "treatment"] <- "Iodoacetamide"
+data.raw.dt[ ind_Iodoacetamide, "dose_uM"] <- 10
+
+ind_Fluphenazine_p3<- data.raw.dt$treatment %in% "Danazol" & data.raw.dt$plateID %in% "20140319_nii"
+data.raw.dt[ ind_Fluphenazine_p3, "treatment"] <- "Fluphenazine"
+data.raw.dt[ ind_Fluphenazine_p3, "dose_uM"] <- 20
+
+ind_Danazol_p3<- data.raw.dt$treatment %in% "Fluphenazine" & data.raw.dt$plateID %in% "20140319_nii" & !ind_Fluphenazine_p3
+data.raw.dt[ ind_Danazol_p3, "treatment"] <- "Danazol"
+data.raw.dt[ ind_Danazol_p3, "dose_uM"] <- 35
+
+
+data.raw.dt
+
+# for plate 3-19 and last 2 plates Danazol was switched with pipetting with Fluphenazine
+
+
+#hier deurgaan met verbeteren, bovenstaand is uitgevoerd. Als grafiek klopt, misschien GUI's opnieuw?
+# old incorrect -->  correct		
+# Metformin	Danazol	35	35
+# Danazol	Indomethacin	200	200
+# Indomethacin	Fluphenazine	20	20
+# Venlafaxine	Nefazodone	30	30
+# Fluphenazine	Cyclosporin	6	6
+# Nefazodone	2,4 dinitrophenol	100	100
+# Cyclosporin	WY-14643	150	150
+# 2,4 dinitrophenol	Metformin	1000	1000
+# WY-14643	Thioridazine	15	15
+# Thioridazine	Captopril	1800
+# Iodoacteamide	Venlafaxine	1200	1200
+# Captopril	DMSO 0.2%	0.2	0.2
+# DMSO 0.2%	DMSO 0.4%	0.4	0.4
+# DMSO 0.4%	DMEM	0	0
+# 
+# DMEM	Iodoacteamide	10	10
+# 
+
+data.raw.dt[ , treat.dose:= paste(treatment, dose_uM)]
+all.treat.dose <- unique(data.raw.dt[ ,treat.dose])
+sort(all.treat.dose)
+for( i in seq_along(all.treat.dose)){
+  print(nrow(data.raw.dt[  treat.dose %in% all.treat.dose[i] & 
+                             plateID %in% c("20140403_nii", "20140403_niii"),]) )
+  print(all.treat.dose[i])
+        }
+
+# make plots of different responses measurements to test which is most suitable
+
+my.data.response <- data.raw.dt[ variable %in% "3m" , ]
+
+
+p<-ggplot( my.data.response, aes(x=timeAfterExposure, y = value, color = plateID)) + geom_point() +
+  geom_smooth(aes(group = plateID ), method = 'loess', se = FALSE ) + theme_sharp()
+
+
+p <- p + facet_grid( treat.dose~cell_line) + ggtitle(unique(my.data.response[,variable]))
+p 
+
+
+#remove non responsive plate:
+data.raw.dt <- data.raw.dt[ !plateID %in% "20140403_niii", ] 
+# all 4 measures in 1 plot (this graph is highly innacture due to time point interval differences?)
+require(plyr)
+data.raw.dt.mean <- ddply(data.raw.dt, 
+                          .(treatment, dose_uM, timeID, cell_line,  variable, treat.dose), 
+                          summarize, mValue = mean(value, na.rm=TRUE))
+data.raw.dt.mean<- as.data.table(data.raw.dt.mean)
+data.raw.dt.mean
+unique(data.raw.dt.mean[, variable])
+
+data.raw.dt.mean.sel <- data.raw.dt.mean[ variable %in% c("norm_gfp_int", "m2sd", "3m", "2m"), ]
+
+data.raw.dt.mean.sel[, timeID:= as.numeric(timeID)]
+
+
+p<-ggplot( data.raw.dt.mean.sel, aes(x=timeID, y = mValue, color = variable)) + geom_point() +
+  geom_smooth(aes(group = variable ), method = 'loess', se = FALSE ) + theme_sharp()
+
+
+p <- p + facet_grid( treat.dose~cell_line) + ggtitle(unique(data.raw.dt.mean.sel[,variable]))
+p 
+
+     
+
+
+
+require(splines)
+require(stats); require(graphics)
+
+# loop over each cell line treatment dose combination for b-spline model. store and plot for qc. use model data for plotting means and for heatmap
+
+my.data.response$splitL <- paste(my.data.response$cell_line , my.data.response$treatment, my.data.response$dose_uM,my.data.response$replID )
+my.data.response.list <- split(my.data.response, c(my.data.response$splitL))
+my.data.response.list[[1]]
+model.results = list()
+dir.create("figures top10 TGP/model fit graphs")
+#pdf(file = paste("figures top10 TGP/model fit graphs/model fit graphs.pdf", sep =""), height = 6, width = 6)
+
+for( i in seq_along(my.data.response.list)){
+  
+  fm1 <- lm(value ~ bs(timeAfterExposure, df =10), data = my.data.response.list[[i]])
+  model.results[[i]] <-  predict(fm1, dtTime<-data.frame(
+    timeAfterExposure = round(seq(0.3,21, length.out=200), digits=2)))
+    model.results[[i]] <- as.data.frame(model.results[[i]] )
+  colnames(model.results[[i]])<- "mod"
+   
+  model.results[[i]]$cell_line <- unique(my.data.response.list[[i]]$cell_line)  
+    model.results[[i]]$treatment <- unique(my.data.response.list[[i]]$treatment)
+    model.results[[i]]$dose_uM <- unique(my.data.response.list[[i]]$dose_uM)
+    model.results[[i]]$replID <- unique(my.data.response.list[[i]]$replID)
+      model.results[[i]]$timeAfterExposure <- dtTime$timeAfterExposure
+   
+      # p <- ggplot(data =  model.results[[i]], aes(x=timeAfterExposure, y = mod)) + geom_point() + 
+           #geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = value, color = replID)) + 
+    # ggtitle(unique(my.data.response.list[[i]]$splitL)) + ylim(c(0,1))
+   
+   #print(p)
+
+}
+dev.off()
+
+head(model.results[[3]])
+model.results.df <- do.call("rbind", model.results)
+require(plyr)
+model.results.df.m <- ddply(model.results.df, .(cell_line, treatment, dose_uM, timeAfterExposure),
+      summarize, meanR = mean(mod, na.rm = TRUE))
+
+head(model.results.df.m)
+
+my.data.response$splitL <- paste(my.data.response$cell_line , my.data.response$treatment, my.data.response$dose_uM )
+my.data.response.list <- split(my.data.response, c(my.data.response$splitL))      
+
+model.results.df.m$splitL <- paste(model.results.df.m$cell_line , model.results.df.m$treatment, model.results.df.m$dose_uM )
+model.results.l.m <- split(model.results.df.m, model.results.df.m$splitL)
+
+
+     dir.create("figures top10 TGP/model fit graphs means")
+pdf(file = paste("figures top10 TGP/model fit graphs means/model fit graphs means.pdf", sep =""), height = 6, width = 6) 
+      for(i in seq_along(model.results.l.m)){
+       p <- ggplot(data =  model.results.l.m[[i]], aes(x=timeAfterExposure, y = meanR)) + geom_point() + 
+          geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = value, color = replID)) + 
+    ggtitle(unique(my.data.response.list[[i]]$splitL)) + ylim(c(0,1))
+  print(p)
+    }
+dev.off()
+
+      
+# results of model stored in:
+head(model.results.df.m)
+
+# create dose levels
+head(model.results.df.m)
+model.results.df.m$dose_uM <- as.numeric(model.results.df.m$dose_uM)  
+model.results.df.m <- model.results.df.m[  order( model.results.df.m[ , "cell_line"],
+                                                          model.results.df.m[ , "treatment"],
+                                                   model.results.df.m[ , "dose_uM"]),   ]
+  
+counts.d <- ddply(model.results.df.m, .(cell_line, treatment,timeAfterExposure ), summarize,count.d.l = length(dose_uM))
+head(counts.d)
+
+model.results.df.m$dose.f <- NA
+for (i in 1 : nrow(counts.d))
+{
+  
+  model.results.df.m$dose.f[ model.results.df.m$treatment == counts.d$treatment[i] & 
+                      model.results.df.m$timeAfterExposure == counts.d$timeAfterExposure[i] &
+                            model.results.df.m$cell_line == counts.d$cell_line[i]] <- gl(counts.d$count.d.l[i], 1)
+  
+}
+
+model.results.df.m[190:210,]
+model.results.df.m$dose.f<- as.factor(model.results.df.m$dose.f)
+# mean of reps
+
+p<-ggplot( model.results.df.m, aes(x=timeAfterExposure, y = meanR, color = dose.f)) +
+  geom_line(aes(group = dose.f )) + theme_sharp()
+
+p <- p + facet_grid( treatment~cell_line)
+p
+
+unique(model.results.df.m[ , c("cell_line", "treatment", "dose_uM", "dose.f")])
+
+# create row-clustered heatmaps per cell line. Rows are treatment_dose and columns are ordered time points
+# head(model.results.df.m)
+# dim(model.results.df.m)
+# require(reshape2)
+
+sort(unique(unlist(cellineStr)))
+model.results.df.m$treat.dose <- paste(model.results.df.m$treatment, model.results.df.m$dose_uM)
+model.results.df.m$timeAfterExposure <- round(model.results.df.m$timeAfterExposure, digits= 2)
+
+all.comps <- unique(model.results.df.m$treat.dose)
+
+#write.table(all.comps, file = "all.comps.txt", sep = "\tab", row.names = F)
+treatmentAnot <- read.table(file = "top10Anot.txt", sep ="\t", header = TRUE, row.names = 1)  # captopril moet een 1tje bij in text bestand
+
+treatmentAnot[ treatmentAnot == 1] <- "yes"
+treatmentAnot[ treatmentAnot == 0] <- "no"
+
+treatmentAnot
+
+sel_type <- c("black", "grey")
+names(sel_type) <- c("yes","no")
+
+myColors <- list(top10_CDKN1A = sel_type, top10_DDIT3= sel_type, top10_HSPA5 = sel_type, top10_SRXN1 = sel_type )
+
+#write.table(treatmentAnot, file = "treatmentAnot2.txt", col.names=T, sep ="\t", row.names = F)
+
+library(RColorBrewer)
+
+display.brewer.all()
+my.colors <- brewer.pal(9, "YlOrRd")
+colBreaks <-c(seq(-0.01, 0.2,length.out=20), seq(0.201,1.01, length.out = 9))
+length(colBreaks)
+
+head(model.results.df.m)
+
+testCell<- model.results.df.m[ model.results.df.m$cell_line %in% "SRXN1",]
+require(reshape2)
+testCell.w <- dcast(data =testCell, treat.dose~timeAfterExposure, value.var = "meanR")
+head(testCell.w)
+rownames(testCell.w) <- testCell.w$treat.dose
+ testCell.w$treat.dose<- NULL
+
+head(testCell.w)
+#names(treatmentAnotL) <- c("top10_CDKN1A" , "top10_DDIT3", "top10_HSPA5" , "top10_SRXN1" )
+
+ind <- match(rownames(testCell.w), rownames(treatmentAnot))
+
+treatmentAnot <- treatmentAnot[ind,]
+head(testCell.w)
+aheatmap(as.matrix(testCell.w), Rowv = TRUE, Colv=NA, 
+            color = my.colors, breaks = colBreaks,
+            fontsize = 10, width = 10, height=10, legend = TRUE,
+          distfun = "euclidean", hclustfun ="ward",annRow = treatmentAnot,annColors = myColors
+   )
+
+
+comp.doses<- unique(model.results.df.m$treat.dose)
+
+?hclust
+# 1) maak afstand tussen paarsgewijze cellijnen gebaseerd op alle compound.dose time courses, doe dit per compound.dose en dan gemiddelde en visa versa
+
+dist.treat.dose = list()
+cells <- sort(unlist(unique(cellineStr)))
+norm.data = list()
+
+
+for(i in  seq_along(cells)) {
+
+  buffer.cells <- model.results.df.m[ model.results.df.m$cell_line %in% cells[i],]
+  time.vectors.perCell <-  dcast(data = buffer.cells, treat.dose~timeAfterExposure, value.var = "meanR" )
+  dim(time.vectors.perCell)
+  rownames(time.vectors.perCell)<- time.vectors.perCell$treat.dose
+  time.vectors.perCell$treat.dose <- NULL
+  # noise is leading to clustering problems -->
+  # per-timepoint background normalize data using DMSO 75% (closest to high concentration DMSO level)
+  time.vectors.perCell<- as.matrix(time.vectors.perCell)
+  #backgrDMSO75 <- time.vectors.perCell[ rownames(time.vectors.perCell) %in% "DMSO 75",]
+  #time.vectors.perCell <- t(apply(time.vectors.perCell, MARGIN= 1,function(x) x - backgrDMSO75))
+  
+  dist.treat.dose[[i]] <- dist(time.vectors.perCell, method = "euclidean", diag=TRUE)
+  
+  
+  norm.data[[i]] <- melt(time.vectors.perCell)
+  norm.data[[i]]$cell_line <- cells[i]
+colnames(norm.data[[i]]) <- c("treat.dose", "timeAfterExposure", "meanR", "cell_line")
+  }
+
+
+
+
+all.norm.data <- do.call("rbind", norm.data)
+class(all.norm.data)
+head(all.norm.data)
+
+
+
+dist.treat.dose[[1]]
+
+dist.treat.dose[[4]]
+
+dist.treat.dose <- lapply(dist.treat.dose, function(x) x<- as.matrix(x))
+
+my.array<- array(unlist(dist.treat.dose), c(36,36,4))  # array vorm, moet je dimensies neerzetten 36 compounds en 4 cell lijnen
+
+
+lapply(dist.treat.dose,  dim)
+4*36*36-length(unlist(dist.treat.dose))  
+
+dist.treat.dose.df <- apply(my.array, 1:2, mean)
+rownames(dist.treat.dose.df) <- rownames(dist.treat.dose[[1]])
+colnames(dist.treat.dose.df) <- colnames(dist.treat.dose[[1]])
+dist.treat.dose.df.d <- as.dist(dist.treat.dose.df)
+treat.dose.clust<-hclust(dist.treat.dose.df.d, method = "ward.D")
+names(treat.dose.clust)
+treat.dose.clust$labels
+treat.dose.clust$order
+results.treat.dose.order <- treat.dose.clust$labels[treat.dose.clust$order]
+plot(treat.dose.clust)
+?dist
+
+# same thing for the compounds
+comp.doses<- unique(model.results.df.m$treat.dose)
+
+
+
+dist.cells = list()
+for(i in  seq_along(comp.doses)) {
+
+  buffer.comp.dose <- all.norm.data[ all.norm.data$treat.dose %in% comp.doses[i],]
+  time.vectors.perCompound <-  dcast(data = buffer.comp.dose, cell_line~timeAfterExposure, value.var = "meanR" )
+  rownames(time.vectors.perCompound)<- time.vectors.perCompound$cell_line
+  time.vectors.perCompound$cell_line <- NULL
+  
+  dist.cells[[i]] <- dist(time.vectors.perCompound, method = "manhattan",  diag=TRUE)
+
+}
+
+dist.cells <- lapply(dist.cells, function(x) x<- as.matrix(x))
+my.array<- array(unlist(dist.cells), c(4,4,36))
+my.array[1,1,31]
+
+dist.cells.df <- apply(my.array, 1:2, mean)
+rownames(dist.cells.df) <- rownames(dist.cells[[1]])
+colnames(dist.cells.df) <- colnames(dist.cells[[1]])
+dist.cells.df.d <- as.dist(dist.cells.df)
+
+
+
+cells.clust<-hclust(dist.cells.df.d, method = "ward.D")
+names(cells.clust)
+cells.clust$labels
+cells.clust$order
+results.cell.order <- cells.clust$labels[cells.clust$order]
+results.cell.order
+plot(cells.clust)
+
+?dist
+?hclust
+
+# 
+# 
+# aheatmap(as.matrix((my.data.w.all)), Rowv = NULL, Colv=NULL, 
+#           annRow = treatmentAnot, annCol = reporterAnot,  color = my.colors,
+#          annColors = myColors,  fontsize = 10, width = 10, height=10, legend = FALSE
+#          
+#   )
+
+
+results.treat.dose.order
+
+[1] "Cyclosporin A 6"       "2,4-dinitrophenol 100" "Metformin 1000"        "WY-14643 150"          "DMSO 0.4"              "Propylthiouracil 1800"
+ [7] "Bendazac 200"          "Captopril 1800"        "DMEM 0"                "DMSO 0.2"              "Methapyrilene 600"     "Venlafaxine 1200"     
+[13] "Cisplatin 20"          "Fluphenazine 20"       "Tacrine 37"            "Omeprazole 600"        "Thioridazine 15"       "Thapsigargin 1"       
+[19] "Tunicamycin 10"        "Danazol 35"            "Indomethacin 200"      "Diclofenac 400"        "BSO 10000"             "Phenobarbital 10000"  
+[25] "Allyl alcohol 70"      "Nefazodone 30"         "DEM 1500"              "APAP 5000"             "Bromoethylamine 500"   "Colchicine 4000"      
+[31] "Etoposide 330"         "Azathioprine 73"       "Sulindac 3000"         "Lomustine 120"         "BHA 200"               "Iodoacetamide 10"     
+
+results.cell.order
+"SRXN1"  "CDKN1A" "DDIT3"  "HSPA5" 
+
+
+# now for each cell:
+dir()
+
+
+celllines <- sort(unique(unlist(cellineStr)))
+
+
+min(all.norm.data$meanR)
+max(all.norm.data$meanR)
+mean(all.norm.data$meanR)
+my.colors
+
+display.brewer.all()
+ colorRampPalette(brewer.pal(9, "Set1"))
+my.colors <- colorRampPalette(brewer.pal(9, "YlOrRd"))(50)
+colBreaks <-c(seq(-0.01, 0.15,length.out=20), seq(0.155,1.01, length.out = 31))
+
+for( i in seq_along(celllines)){
+data.cell <- all.norm.data[ all.norm.data$cell_line %in% celllines[i], ]
+my.data.w <-  dcast(data = data.cell, treat.dose~timeAfterExposure, value.var = "meanR" )
+head(my.data.w)
+rownames(my.data.w) <- my.data.w$treat.dose
+my.data.w$treat.dose<- NULL
+ind <- match(results.treat.dose.order, rownames(my.data.w))
+my.data.w<- my.data.w[ind, ]
+if(
+!all(rownames(my.data.w)==results.treat.dose.order)
+){
+  stop()
+}
+
+ind2 <- match( rownames(my.data.w),rownames(treatmentAnot))
+
+treatmentAnot <- treatmentAnot[ind2,]
+
+pdf(file = paste("figures top10 TGP/heatmap/", celllines[i], ".pdf", sep =""), width = 6, height = 12)
+
+
+    aheatmap(as.matrix((my.data.w)), Rowv = NA, Colv=NA, 
+          annRow = treatmentAnot,  breaks = colBreaks, color = my.colors,
+         annColors = myColors,  fontsize = 10, legend = TRUE
+  )
+
+dev.off()
+}
+
+
+hist(1:100, col=my.colors)
+
+
+
+head(ordered.norm.my.data)
+distfun = "correlation",
+ hclustfun = "ward"
+my.data[ rownames(my.data)=="Tacrine_80",]
+
+
+
+
+
+
+
+
+
+# old code starts here
+#Srxn1:
+
+AUC_Srxn1 <- read.delim(file = "/media/Image Data/POC/2012_12_06/TIFs/output/2012_12_06 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_Srxn1 <- read.delim(file = "/media/Image Data/POC/2012_12_06/TIFs/output/2012_12_06 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_Srxn1$cell <- "Srxn1"
+summ_Srxn1$cell <- "Srxn1"
+
+AUC_DDIT3 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/DDIT3/2013_01_16 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_DDIT3 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/DDIT3/2013_01_16 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_DDIT3$cell <- "DDIT3"
+summ_DDIT3$cell <- "DDIT3"
+
+AUC_HSPA5 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/HSPA5/2013_01_16 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_HSPA5 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/HSPA5/2013_01_16 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_HSPA5$cell <-"HSPA5"
+summ_HSPA5$cell <- "HSPA5"
+
+AUC_NFE2L2 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/NFE2L2/2013_01_16 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_NFE2L2 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/NFE2L2/2013_01_16 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_NFE2L2$cell <- "NFE2L2"
+summ_NFE2L2$cell <- "NFE2L2" 
+
+AUC_XBP1 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/XBP1/2013_01_16 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_XBP1 <- read.delim(file = "/media/Image Data/POC/2013_01_16/TIFs/output/XBP1/2013_01_16 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_XBP1$cell<- "XBP1"
+summ_XBP1$cell <-"XBP1"
+
+AUC_ATF4 <- read.delim(file = "/media/Image Data/POC/2012_12_10 part 1/tiffs_wells/output/ATF4/2012_12_10 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_ATF4 <- read.delim(file = "/media/Image Data/POC/2012_12_10 part 1/tiffs_wells/output/ATF4/2012_12_10 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_ATF4$cell<- "ATF4"
+summ_ATF4$cell <-"ATF4"
+
+AUC_TP53 <- read.delim(file = "/media/Image Data/POC/2012_12_10 part 1/tiffs_wells/output/TP53/2012_12_10 myData_AUC.csv", sep =",", header = T, row.names=1)
+summ_TP53 <- read.delim(file = "/media/Image Data/POC/2012_12_10 part 1/tiffs_wells/output/TP53/2012_12_10 myData_summarized.csv", sep = ",", header = T, row.names = 1)
+AUC_TP53$cell<- "TP53"
+summ_TP53$cell <-"TP53"
+
+# normalize data: scale the data according to positive control: this way the responses are scaled to each other
+ind <- grep("deox" , AUC_Srxn1$treatment, ignore.case = TRUE )
+AUC_Srxn1 <- AUC_Srxn1[-ind,]
+
+ind <- grep("deox" , summ_Srxn1$treatment, ignore.case = TRUE )
+summ_Srxn1[ind,]
+summ_Srxn1 <- summ_Srxn1[-ind,]
+
+
+#AUC_Srxn1_m <-  max(AUC_Srxn1$AUC)
+#AUC_Srxn1$AUC <- AUC_Srxn1$AUC * (1 /  (100*AUC_Srxn1_m))
+max(AUC_Srxn1$AUC)
+
+ind <- grep("deox", AUC_DDIT3$treatment, ignore.case = TRUE )
+AUC_DDIT3 <- AUC_DDIT3[-ind,]
+#AUC_DDIT3_m <- max(AUC_DDIT3$AUC)
+#AUC_DDIT3$AUC <- AUC_DDIT3$AUC * (1 / (100*AUC_DDIT3_m))
+max(AUC_DDIT3$AUC)
+
+ind <- grep("deox", AUC_HSPA5$treatment, ignore.case = TRUE )
+AUC_HSPA5 <- AUC_HSPA5[-ind,]
+#AUC_HSPA5_m <- max(AUC_HSPA5$AUC)
+#AUC_HSPA5$AUC <- AUC_HSPA5$AUC * (1 / (100*AUC_HSPA5_m))
+max(AUC_HSPA5$AUC)
+
+ind <- grep("deox" , summ_HSPA5$treatment, ignore.case = TRUE )
+summ_HSPA5[ind,]
+summ_HSPA5 <- summ_HSPA5[-ind,]
+
+
+
+
+ind <- grep("deox", AUC_NFE2L2$treatment, ignore.case = TRUE )
+AUC_NFE2L2 <- AUC_NFE2L2[-ind,]
+#AUC_NFE2L2_m <- max(AUC_NFE2L2$AUC)
+#AUC_NFE2L2$AUC <- AUC_NFE2L2$AUC * (1 / (100*AUC_NFE2L2_m))
+max(AUC_NFE2L2$AUC)
+
+ind <- grep("deox", AUC_XBP1$treatment, ignore.case = TRUE )
+AUC_XBP1 <- AUC_XBP1[-ind,]
+#AUC_XBP1_m <- max(AUC_XBP1$AUC)
+#AUC_XBP1$AUC <- AUC_XBP1$AUC * (1 / (100*AUC_XBP1_m))
+max(AUC_XBP1$AUC)
+
+ind <- grep("deox", AUC_ATF4$treatment, ignore.case = TRUE )
+AUC_ATF4 <- AUC_ATF4[-ind,]
+#AUC_ATF4_m <- max(AUC_ATF4$AUC)
+#AUC_ATF4$AUC <- AUC_ATF4$AUC * (1 / (100*AUC_ATF4_m))
+max(AUC_ATF4$AUC)
+
+ind <- grep("deox", AUC_TP53$treatment, ignore.case = TRUE )
+AUC_TP53 <- AUC_TP53[-ind,]
+#AUC_TP53_m <- max(AUC_TP53$AUC)
+#AUC_TP53$AUC <- AUC_TP53$AUC * (1 / (100*AUC_TP53_m))
+max(AUC_TP53$AUC)
+
+ind <- grep("deox" , summ_TP53$treatment, ignore.case = TRUE )
+summ_TP53[ind,]
+summ_TP53 <- summ_TP53[-ind,]
+
+
+
+# plot heatmap
+myData_AUC <- rbind(AUC_Srxn1, AUC_DDIT3, AUC_HSPA5, AUC_NFE2L2, AUC_XBP1, AUC_ATF4, AUC_TP53)
+
+colnames(summ_Srxn1)[5] <-"Intensity"
+colnames(summ_HSPA5)[5] <-"Intensity"
+colnames(summ_TP53)[5] <-"Intensity"
+myData_summ <- rbind( summ_Srxn1, summ_HSPA5, summ_TP53)
+head(myData_summ)
+colnames(myData_summ)[6] <- "Cell_Line"
+
+colnames(myData_AUC)[3] <- "Cell_Line"
+# myData_AUC$Stress_Response <- NA
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "TP53"] <- "DDR"
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "Srxn1"] <- "OS"
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "NFE2L2"] <- "OS"
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "DDIT3"] <- "ER-stress"
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "HSPA5"] <- "ER-stress"
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "XBP1"] <- "ER-stress"
+# myData_AUC$Stress_Response[ myData_AUC$Cell_Line == "ATF4"] <- "ER-stress"
+
+
+myData_AUC$Compound_Type <- NA
+myComps<-unique(myData_AUC$treatment)
+myComps
+ind <- grep( "CDDO" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "OS"
+ind <- grep( "DEM" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "OS"
+ind <- grep( "IAA" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "OS"
+ind <- grep( "menadio" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "OS"
+ind <- grep( "H2O2" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "OS"
+
+
+ind <- grep( "BFA" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "ER-stress"
+ind <- grep( "tunica" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "ER-stress"
+ind <- grep( "thapsi" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "ER-stress"
+
+ind <- grep( "cispl" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "DDR"
+ind <- grep( "etop" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "DDR"
+
+ind <- grep( "DMSO" ,myData_AUC$treatment, ignore.case = TRUE ) 
+myData_AUC[ind,]
+myData_AUC$Compound_Type[ind ] <- "vehicle"
+
+
+
+myData_AUC$Compound_Type[is.na(myData_AUC$Compound_Type)] <- "other"
+
+myData_AUC$Compound_Type <- factor(myData_AUC$Compound_Type)
+ 
+
+
+head(myData_AUC)
+
+myData_AUC <- myData_AUC[ myData_AUC$treatment != "Menadione H", ]
+myData_AUC <- myData_AUC[ myData_AUC$treatment != "Menadione M", ]
+myData_AUC <- myData_AUC[ myData_AUC$treatment != "DMSO 75 %", ]
+
+myData_summ <- myData_summ[ myData_summ$treatment != "Menadione H", ]
+myData_summ <- myData_summ[ myData_summ$treatment != "Menadione M", ]
+myData_summ <- myData_summ[ myData_summ$treatment != "DMSO 75 %", ]
+
+
+
+
+AUC_Srxn1
+AUC_DDIT3
+AUC_HSPA5
+AUC_NFE2L2
+AUC_XBP1
+AUC_ATF4
+AUC_TP53
+Srxn1 <- myData_AUC[ myData_AUC$Cell_Line=="Srxn1", c("treatment","AUC")]
+DDIT3 <- myData_AUC[ myData_AUC$Cell_Line=="DDIT3", c("treatment","AUC")]
+HSPA5 <- myData_AUC[ myData_AUC$Cell_Line=="HSPA5", c("treatment","AUC")]
+NFE2L2 <- myData_AUC[ myData_AUC$Cell_Line=="NFE2L2", c("treatment","AUC")]
+XBP1 <- myData_AUC[ myData_AUC$Cell_Line=="XBP1", c("treatment","AUC")]
+ATF4 <- myData_AUC[ myData_AUC$Cell_Line=="ATF4", c("treatment","AUC")]
+TP53 <- myData_AUC[ myData_AUC$Cell_Line=="TP53", c("treatment","AUC")]
+
+myData_AUC_q <- cbind(Srxn1, DDIT3, HSPA5, NFE2L2, XBP1, ATF4, TP53)
+
+rownames(myData_AUC_q) <- myData_AUC_q[,13]
+myData_AUC_q <- myData_AUC_q[,-c(1,3,5,7,9,11,13)] 
+colnames(myData_AUC_q ) <- c("Srxn1", "DDIT3", "HSPA5", "NFE2L2", "XBP1", "ATF4", "TP53")
+
+
+
+
+Compound_Type <- c( "darkred", "limegreen", "blue", "pink", "lightblue")
+names(Compound_Type) <- c("DDR", "ER-stress", "OS", "other", "vehicle")
+myColors <- list(Compound_Type = Compound_Type)
+
+zehDist <- c("manhattan","correlation", "euclidean")[3]
+zehClust <- c("single" , "average", "ward", "complete", "centroid")[2]
+
+ means.col <-  unlist(lapply(myData_AUC_q,  mean ))
+  means.sd <-  unlist(lapply(myData_AUC_q,  sd ))
+myData_AUC_q_n <-myData_AUC_q
+head(myData_AUC_q_n)
+myData_AUC_q_n$Srxn1 <-  (myData_AUC_q$Srxn1 - as.numeric(means.col["Srxn1"]) )/ as.numeric(means.sd["Srxn1"])
+myData_AUC_q_n$DDIT3 <-  (myData_AUC_q$DDIT3 - means.col["DDIT3"]) / means.sd["DDIT3"]
+myData_AUC_q_n$HSPA5 <-  (myData_AUC_q$HSPA5 - means.col["HSPA5"]) / means.sd["HSPA5"]
+myData_AUC_q_n$NFE2L2 <-  (myData_AUC_q$NFE2L2 - means.col["NFE2L2"]) / means.sd["NFE2L2"]
+myData_AUC_q_n$XBP1 <-  (myData_AUC_q$XBP1 - means.col["XBP1"]) / means.sd["XBP1"]
+myData_AUC_q_n$ATF4 <-  (myData_AUC_q$ATF4 - means.col["ATF4"]) / means.sd["ATF4"]
+myData_AUC_q_n$TP53 <-  (myData_AUC_q$TP53 - means.col["TP53"]) / means.sd["TP53"]
+
+
+
+head(myData_AUC_q_n)
+
+
+
+min(myData_AUC_q_n)
+
+hmcols<-colorRampPalette(c("white","blue"))(256)
+
+white <- hmcols[1]
+lightestBlue <-hmcols[30]
+lightBlue <- hmcols[80]
+blue <- hmcols[128]
+darkBlue <- hmcols[156]
+darkerBlue <- hmcols[180]
+darkestBlue <-hmcols[256]
+
+my.seq<-seq(min(myData_AUC_q_n),max(myData_AUC_q_n), length.out=8)
+
+Breakwhite <- my.seq[2]
+BreaklightestBlue <- my.seq[3]
+BreaklightBlue<- my.seq[4]
+Breakblue <-  my.seq[5]
+BreakdarkBlue <- my.seq[6]
+BreakdarkerBlue <- my.seq[7]
+BreakdArkestBlue <- my.seq[8]
+
+
+
+  myBreaks <-c( Breakwhite, BreaklightestBlue, BreaklightBlue, Breakblue, BreakdarkBlue, BreakdarkerBlue, BreakdArkestBlue) 
+
+
+color_palette <- c(white, lightestBlue, lightBlue, blue, darkBlue, darkerBlue, darkestBlue)
+
+# set up myAnot data and quantitative data
+
+
+
+head(myData_AUC)
+myAnot <- data.frame( treatment = myData_AUC$treatment[ myData_AUC$Cell_Line=="TP53"], Compound_Type = myData_AUC$Compound_Type[ myData_AUC$Cell_Line == "TP53"  ])
+rownames(myAnot) <- myAnot$treatment
+myAnot$treatment <- NULL
+head(myAnot)
+
+sum(rownames(myAnot) != rownames(myData_AUC_q))
+
+fontsize_row = 8; fontsize_col = 6;
+pheatmap(t(as.matrix(myData_AUC_q_n)), col= color_palette, breaks =  myBreaks , main= "Specificity of Adaptive stress response Reporters",  
+         fontsize_row=fontsize_row, fontsize_col =fontsize_col, border_color=NA, scale = "row",
+         cluster_rows = TRUE, cluster_cols = TRUE, clustering_distance_rows = zehDist, 
+         clustering_method = zehClust,  
+          legend = TRUE, fontsize = 4,
+          legend_breaks = round(myBreaks, digits=1), 
+         annotation = myAnot, annotation_colors = myColors,
+          display_numbers = F )
+
+
+
+
+
+
+  
+  
+  #plot xy plots overlayed
+head(myData_summ)
+sum.means <- ddply(myData_summ, .(Cell_Line), function(x) mean(x$Intensity))
+sum.sd <- ddply(myData_summ, .(Cell_Line), function(x) sd(x$Intensity))
+
+myData_summ$Intensity[ myData_summ$Cell_Line=="Srxn1"] <- (myData_summ$Intensity[ myData_summ$Cell_Line=="Srxn1"] -
+  sum.means$V1[ sum.means$Cell_Line == "Srxn1"]) /  sum.sd$V1[ sum.sd$Cell_Line == "Srxn1"]
+
+myData_summ$Intensity[ myData_summ$Cell_Line=="HSPA5"] <- (myData_summ$Intensity[ myData_summ$Cell_Line=="HSPA5"] -
+  sum.means$V1[ sum.means$Cell_Line == "HSPA5"]) /  sum.sd$V1[ sum.sd$Cell_Line == "HSPA5"]
+
+myData_summ$Intensity[ myData_summ$Cell_Line=="TP53"] <- (myData_summ$Intensity[ myData_summ$Cell_Line=="TP53"] -
+  sum.means$V1[ sum.means$Cell_Line == "TP53"]) /  sum.sd$V1[ sum.sd$Cell_Line == "TP53"]
+
+#tijd van HSPA5 klopt niet
+myData_summ$timeAfterExposure[ myData_summ$Cell_Line=="HSPA5"] <- myData_summ$timeAfterExposure[ myData_summ$Cell_Line=="HSPA5"] / 2
+
+unique(myData_summ$treatment)
+
+p<- ggplot( data = myData_summ, group = Cell_Line,  aes( x = timeAfterExposure , y = Intensity,  linetype = "Cell_Line", color = Cell_Line)) + geom_point(symbol =".", size = 1 ) 
+
+p <- p + facet_wrap(~ treatment )
+p <- p + theme( axis.text.x = element_text(angle = 90, hjust = 1, size = 14, colour = "grey50") ) + 
+theme( strip.text.x = element_text( size = 14)) 
+ p 
+ 
+
+
+
+
+
+
+
+
+
+
+
+```
