@@ -1,0 +1,80 @@
+---
+title: "statistics m&m"
+author: "Steven Wink"
+date: "June 10, 2016"
+output: html_document
+---
+
+
+
+
+
+## Image analysis 
+
+Image analysis was performed with CellProfiler[ref] in combination with an in house developed segmentation algorithm; watershed masked clustering (WMC) [ref]. Foci counts were analysis using the FOCIpicker3D {zoiets} [ref] algorithm in ImageJ [ref]. 
+The following imaging measures were used; For p53BP1 and Keap1 the number of foci was determined for each cell. For p21, p53, CHOP, XBP1, Atf4 and Nrf2 the mean intensity of the nuclei was determined for each cell. For the Btg2, BiP and Srxn1 the integrated intensity of the cytoplasm's was determined for each cell. For the model compound set the mean of the cell population was used as the final image measure. For the DILI compound set the fraction of GFP positive cells was used as the final image measure.
+
+## Scaling and plate normalization
+
+For model compound dataset the different imaging measures were standardized by scaling ( i.e. mean or sum of intensity measures, foci counts ), scaling was used for each plate - cell line combination;
+
+$$ x_{scaled} = \frac{x - x_{min}}{x_{max} - x_{min}}  $$
+
+
+For the DILI compound dataset the fraction of GFP positive cells was determined to increase sensitivity of the assay. A GFP positive cell was defined as minimally twice the DMSO - control background level. No scaling was used for the GFP positive fraction measures.
+The total imaging time and time intervals for the different plates and replicates varied, thus for statistical analysis and plate normalization regression was performed using the 'lm' function of the 'stats' package. Natural spline regression with 6 degrees of freedom was performed using the 'ns' function of the 'splines' package. The additional linear constraints of the natural spline algorithm at the predictor boundaries allowed a stable extrapolation of the total time to equal length for all plates. 24 equidistant time points for each condition where sampled from the model and subjected to quantile normalization to equalize the distributions for each plate. 
+
+## Statistical analysis
+
+
+The quantile normalized data was subjected to statistical significance tests with the following set of formulae;
+
+$$ x_{DMSOmean} = \frac{1}{repl} 
+  \sum_{
+    repl = 1 
+    }^{
+    repl
+    } X_{DMSO, [ rp, tp]} $$
+
+the mean over the replicates for the DMSO controls for each reporter (rp) and time point (tp). 
+
+
+$$ x_{diff} = \frac{
+  x - x_{DMSOmean}}{
+    sqrt(sd_{DMSO}^{2} + sd_{tr}^{2} + sd_{resid}^{2})
+  } $$
+
+The difference (x_diff) between the DMSO means and treatments normalized with standard errors at each reporter (rp), treatment (tr) and time point (tp). With the standard errors;
+
+$$ sd_{DMSO} = sd(x_{ [ rp, tr=DMSO, tp ]} ) $$
+
+The standard error over the replicates of the DMSO controls, for each reporer and time point.
+
+$$ sd_{tr} = sd(x_{ [ rp, tr, tp ]} ) $$
+
+The standard error over the replicates of the treatments, for each reporter, treatment and time point.
+
+$$ sd_{resid} = sqrt( \frac{ 
+    \sum_{tp = 1}^{tp = 24} ( resid_{[repl, rp, tr]} )^2 }{
+    d.f. - 1
+    }  $$  
+
+The mean residual standard error, with resid the residuals from the regression, for each replicate, reporter and treatment.
+This ensures the variance from the raw data is included in the statistical analysis.
+
+Finally, for each replicate, reporter and treatment the mean difference over time (XmeanDiff) is calculated;
+
+$$ x_{meanDiff} = \frac{ 1 }{ tp } \sum_{ tp=1 }^{ tp } x_{[ replicate, reporter, treatment ]} $$
+
+A two sample one sided student's t-tests between the meanDIff values of matched DMSO control replicates and treatment replicates was performed. 
+
+In summary, the average and standard error for each point in time of the quantile normalized values was calculated over the replicates for DMSO. The distance of the treatments to the DMSO mean at each point was determined and normalized by three standard error terms; the standard error of the treatment replicates, the DMSO replicates and the mean residual standard error of the regression analysis.
+The mean difference over time was calculated, followed by a one-sided student's t-test to determine if the replicate treatment curves were significantly different that the DMSO control replicates.
+
+
+## Cluster analysis
+Cluster analysis was performed using the 'dist' and 'hclust' functions from the 'stats' package from the base R distribution.
+For all cluster analysis the distance metric was 'euclidean' and clustering algorithm 'complete'.
+The clustering of the time curve data required clustering of an extra dimension (time). All pair-wise time curve distances were computed. The mean distances per compound-compound and reporter-reporter combinations were calculated - reducint the dimensions to 2, and used as input for the clustering algorithm. 
+
+All analysis was performed with R 3.2.3  [ref]
