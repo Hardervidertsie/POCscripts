@@ -10,36 +10,36 @@ The story (I)
 ========================================================
 
 <br>
-Over the last few years, I have worked on imaging data.. alot.
+Over the last few years, I have worked on imaging data.. alot.  
 <br>
-Every now and then some AUC and t-tests were executed.
+Every now and then some AUC and t-tests were executed.  
 <br>
   
 Dreadfull significance of controls due to slightly different laser settings was the result.  
 <br>  
-Redoing the imaging was out of the question, normalization <strong>had</strong> to be improved
+Redoing the imaging was out of the question, normalization <strong>had</strong> to be improved.  
 A test was needed that could capture the measurement error per time curve better. 
 <br>
-But this would cost time, so much precious time. And I was out of time...
-Then  
+But this would cost time, so much precious time. And I was out of time...  
+  
 <br>
-Then, one day, something happened:
+Then, one day, something happened:  
 
 The story (II)
 ========================================================
 <br>
-A reviewer dared to ask for statistical analysis of our imaging time series data.  
+A reviewer dared to ask for statistical analysis of our imaging time series data.    
 <br>
-Yes, A dreadfull day, and much moarning followed.   
+Yes, A dreadfull day, and much moarning followed.     
 
 But it was also a great challenge.  
 <br> 
-struggle and new insights occured in many a late night.
+struggle and new insights occured in many a late night.  
 <br>
  
 /_end of melodrama_
 
-In this presentation I would like to share some insights and code.  
+<strong> In this presentation I would like to share some insights and code.  </strong>
 
 
 
@@ -67,13 +67,13 @@ Multiple plates & time dynamics
   <br>
 Test set data: the problems are numerous  
 
--replicate 1 overal lower  
+- replicate 1 overal lower  
 
--replicate 3 is saturated for high response & has higher variance  
+- replicate 3 is saturated for high response & has higher variance  
 
--unequal total imaging time  
+- unequal total imaging time  
 
--unequal time intervals  
+- unequal time intervals  
 
 
 
@@ -87,18 +87,17 @@ The plate with unhappy cells
   
 overal lower responses  
 
-
-
-The normal plate, beyond the reach of mere PhD students :)
+ 
+The decent plate, beyond the reach of mere PhD students :)
 ========================================================
 
 ![](presentation/figures/rawdata_normal.png)
 ***
   <br>
   <br>
--No plateau  
--Low variance over time  
--Good use of dynamic range  
+- No plateau  
+- Low variance over time  
+- Good use of dynamic range  
     
   <br> 
   <br>
@@ -113,9 +112,9 @@ The "I should have done this one over" plate
 <br>
 <br>
 
--High variance   
--low amount of time points   
--high-level response reaches plateau very early: does not capture
+- High variance   
+- low amount of time points   
+- high-level response reaches plateau very early: does not capture
 entire dynamic range. 
 
 
@@ -125,9 +124,9 @@ Linear normalization: equal plate means
 ***
 <br>
 <br>
-$$ \Large x_{refP} = \\ \frac{1}{n_{refPlate}} \sum_{i=1, j = j_{refPlate}}^{i=i} x_{i,j} $$
+$$ \Large x_{refP} =  \frac{1}{n} \sum_{i=1, j = j_{refPlate}}^{i=n} x_{i,j} $$
 <br>
-$$ \Large x_{meanShift} = x_{j} + ( x_{refP} - x_{j mean} )  $$
+$$ \Large x_{meanShift} = x_{j} + ( x_{refP} - x_{j,mean} )  $$
 <br>
 Better, but clearly a horizontal shift will not be sufficient.
 
@@ -151,8 +150,24 @@ Background subtraction
 ========================================================
 ![](presentation/figures/controlSub.png)
 ***
-Generaly fixes the controls but not the responses. 
---Small responses end up more significant than higher more variable responses.
+Generaly fixes the controls but not the responses.   
+
+- Small responses end up more significant than higher more variable responses.
+
+
+Fold change with respect to plate controls
+========================================================
+![](presentation/figures/foldChangeVal.png)
+***
+
+- Often works nicely.  
+
+- However, one divides by control levels on imaging plates which are often close to zero or highly variable, this can blow up values when dividing close to zero. (happens a bit with 'treatlow' repl 1 (red)).  
+
+- Can try to stabilize by e.g. taking control average over time or add a fraction of plate mean.    
+
+
+
 
 Linear normalizations are not sufficient in this case.
 ========================================================
@@ -167,36 +182,167 @@ standard normal normalization ( Z-score )
 ========================================================
 ![](presentation/figures/standardNormalized.png)
 ***
-$$ \Large Z = \frac{x - \bar{x}}{/sigma}
-<br>
+$$ \Large Z = \frac{x - \bar{x}_{plate}}{\sigma_{plate}} $$  
+
 - Often used normalization method.  
-- Data looks much better, statistics would make sense.  
+- Data looks much better, although plateau induced dynamics not equalized.  
 - Confusing for interpretation, below zero, above 1.  
 - A solution would be to use the sd-normal for statistics, but not for display.  
 
 
-Non linear normalization: sigmoid
+Non linear normalization: sigmoid (I)
 ========================================================
+```{r }
+xx <- seq(0,1, length.out = 100)
+sigmoidFun <- function(x, A, B) { 
+                          y <-   1 / ( 1 + exp( - ( ( x - B ) / A  ) ) ) 
+                          y
+                          }
+xdf <- data.frame( xx= xx, yy = sigmoidFun( xx, A = 0.1 , 0.5))
 
+
+```
+***
+```{r, echo = FALSE }
+ plot( xdf )
+
+```
+
+
+Non linear normalization: sigmoid (II)
+========================================================
+- Set the steepest slope location by beta, and slope itself by alpha   
+- To the left and steeper:  
+```{r }
+
+xdf <- data.frame( xx= xx, yy = sigmoidFun( xx, A = 0.05 , 0.2))
+
+
+```
 
 ***
-xx <- seq(0,1, length.out = 100)
+```{r, echo = FALSE }
+ plot( xdf )
 
-xdf <- data.frame( xx= xx, yy = sigmoidFun( xx, A = 0.1 , 0.5))
-plot( xdf )
-
-
+```
 
 
-Quantile normalization
+Non linear normalization: sigmoid (III)
+========================================================
+![](presentation/figures/sigmoidNorm.png)
+***
+<br>
+- Lower intensity less increased, higher more, then highest identical.   
+Nice in theory, hard in practice...
+
+<br>
+$$ \LARGE x = \frac{1}{
+  1 + e^{-\frac{(x - \beta)}{
+    \alpha
+  }}
+}   $$
+- for: alpha = 0.07, beta = 0.3 
+
+
+
+Quantile normalization  
 ========================================================
 
-Statistical considerations
+- Equalizes plate distributions  
+- For each plate order the datapoints (rank ordered)  
+- calculate the quantile means  
+- put the values back in original place  
+- Need enough data  
+- Need equal datapoints per plate   
+- Value rank should be sensicle for interpretation (not absolute value)
+
+
+Quantile normalization: fitting natural spline 
 ========================================================
--AUC replicates, loose information of variance within time
--Thus very sensitive to non-perfect plate normalizations
--Long small response differences > time dynamics such as temporary peaks
--Early high peak less significant than very low prolonged response?
+
+![](presentation/figures/ns_fit.png)
+***
+```{r , eval = FALSE}
+lm(value ~ ns(time, df =6), data = ...
+
+```
+- Smoothing spline: 
+- piece wise polynomials at each data point with 2nd and 3rd degree equality constraints at all knots.
+- natural spline has additional linear constraints at boundaries.
+
+Quantile normalization: result
+===============================================
+
+![](presentation/figures/quantileNorm.png)
+***
+![](presentation/figures/quantileNorm_errorbar.png)
+
+Statistics (I)
+===============================================
+The quantile normalized data was subjected to statistical significance tests with the following set of formulae;
+
+$$ \Large x_{DMSOmean} = \frac{1}{repl} 
+  \sum_{
+    repl = 1 
+    }^{
+    repl
+    } X_{DMSO, [ rp, tp]} $$
+
+the mean over the replicates for the DMSO controls for each reporter (rp) and time point (tp). 
+
+
+$$ \Large x_{diff} = \frac{
+  x - x_{DMSOmean}}{
+    sqrt(sd_{DMSO}^{2} + sd_{tr}^{2} + sd_{resid}^{2})
+  } $$
+
+The difference (x_diff) between the DMSO means and treatments normalized with standard errors at each reporter (rp), treatment (tr) and time point (tp). With the standard errors;
+
+Statistics (II)
+===============================================
+
+
+$$ \Large sd_{DMSO} = sd(x_{ [ rp, tr=DMSO, tp ]} ) $$
+
+The standard error over the replicates of the DMSO controls, for each reporter and time point.
+
+$$ \Large sd_{tr} = sd(x_{ [ rp, tr, tp ]} ) $$
+
+The standard error over the replicates of the treatments, for each reporter, treatment and time point.
+
+Statistics (III)
+
+===============================================
+$$ \Large sd_{resid} = sqrt( \frac{ 
+    \sum_{tp = 1}^{tp = 24} ( resid_{[repl, rp, tr]} )^2 }{
+    d.f. - 1
+    }  $$  
+The mean residual standard error, with resid the residuals from the regression, for each replicate, reporter and treatment.
+This ensures the variance from the raw data is included in the statistical analysis.
+
+Finally, for each replicate, reporter and treatment the mean difference over time (XmeanDiff) is calculated;
+$$ \Large x_{meanDiff} = \frac{ 1 }{ tp } \sum_{ tp=1 }^{ tp } x_{[ replicate, reporter, treatment ]} $$
+A two sample one sided student's t-tests between the meanDIff values of matched DMSO control replicates and treatment replicates was performed. 
+  
+Statistics: result
+===============================================
+
+![](presentation/figures/timecourses_1sided_sd3SUM_quantile.png)
+  
+
+
+In conclusion
+========================================================
+Quantile normalization as plate normalization +   
+
+variance normalized distance to controls, averaged over time +  
+
+one-sided student's t-test  =
+<br>  
+<br>  
+<br>  
+Sensitive low false positive statistical assay of time course imaging data.
+
 
 
 Available R-code

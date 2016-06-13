@@ -324,7 +324,7 @@ quantileOrigIndex <- lapply(quantileOrigList, function(x) rank( x$mod ) )
 quantileSorted <- lapply( quantileOrigList, function(x) sort(x$mod))
 head(cbind(quantileSorted[[1]][quantileOrigIndex[[1]]] ,quantileOrigList[[1]])  )
 
-head(quantileSorted.df)
+
 quantileSorted.df <- do.call('cbind', quantileSorted)
 newValues <- rowMeans(quantileSorted.df)
 plot(newValues)
@@ -444,19 +444,19 @@ stats.out.data.df[ pVal <= 0.01 , pval := "***"]
 stats.out.data.df[, yloc := 0.7]
 
 
-png(paste("figures", "/timecourses_1sided_sd3SUM_quantile.png", sep =""), height = 2000, width = 2000)
+png(paste("figures", "/timecourses_1sided_sd3SUM_quantile.png", sep =""), height = 1200, width = 1600)
 p<-ggplot( model.results.df.m, aes(x=time, y = meanQ ) ) +
   geom_point( size = 6) + theme_minimal( base_size = 40)
 p <- p +  facet_wrap( ~treatment)
 p <- p +  geom_text( data = stats.out.data.df, 
                      aes(x = 4, y =yloc, label =  pval ), size = 40) +
    geom_text( data = stats.out.data.df, 
-                     aes(x = 4, y =yloc + 0.1, label =  round( pVal, digits = 4) ), size = 12) 
+                     aes(x = 4, y =yloc + 0.2, label =  round( pVal, digits = 4) ), size = 12) 
 
 
 print(p)
 dev.off()
-getwd()
+
 
 
 
