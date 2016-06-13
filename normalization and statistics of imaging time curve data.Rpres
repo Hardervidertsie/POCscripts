@@ -22,7 +22,6 @@ A test was needed that could capture the measurement error per time curve better
 <br>
 But this would cost time, so much precious time. And I was out of time...  
   
-<br>
 Then, one day, something happened:  
 
 The story (II)
@@ -124,9 +123,9 @@ Linear normalization: equal plate means
 ***
 <br>
 <br>
-$$ \Large x_{refP} =  \frac{1}{n} \sum_{i=1, j = j_{refPlate}}^{i=n} x_{i,j} $$
+$$ \normalsize x_{refP} =  \frac{1}{n} \sum_{i=1, j = j_{refPlate}}^{i=n} x_{i,j} $$
 <br>
-$$ \Large x_{meanShift} = x_{j} + ( x_{refP} - x_{j,mean} )  $$
+$$ \normalsize x_{meanShift} = x_{j} + ( x_{refP} - x_{j,mean} )  $$
 <br>
 Better, but clearly a horizontal shift will not be sufficient.
 
@@ -136,7 +135,7 @@ Min max plate normalization
 ![](presentation/figures/minmaxNorm.png)
 ***
 <br>
-$$ \LARGE x_{scaled} = \frac{x - x_{min}}{x_{max} - x_{min}}  $$
+$$ \normalsize x_{scaled} = \frac{x - x_{min}}{x_{max} - x_{min}}  $$
 <br>
 Great for scaling plates for visual purposes.   
 However this method is sensitive to the outlier points.  
@@ -182,7 +181,7 @@ standard normal normalization ( Z-score )
 ========================================================
 ![](presentation/figures/standardNormalized.png)
 ***
-$$ \Large Z = \frac{x - \bar{x}_{plate}}{\sigma_{plate}} $$  
+$$ \normalsize Z = \frac{x - \bar{x}_{plate}}{\sigma_{plate}} $$  
 
 - Often used normalization method.  
 - Data looks much better, although plateau induced dynamics not equalized.  
@@ -236,7 +235,7 @@ Non linear normalization: sigmoid (III)
 Nice in theory, hard in practice...
 
 <br>
-$$ \LARGE x = \frac{1}{
+$$ \normalsize x = \frac{1}{
   1 + e^{-\frac{(x - \beta)}{
     \alpha
   }}
@@ -281,7 +280,7 @@ Statistics (I)
 ===============================================
 The quantile normalized data was subjected to statistical significance tests with the following set of formulae;
 
-$$ \Large x_{DMSOmean} = \frac{1}{repl} 
+$$ \normalsize x_{DMSOmean} = \frac{1}{repl} 
   \sum_{
     repl = 1 
     }^{
@@ -291,7 +290,7 @@ $$ \Large x_{DMSOmean} = \frac{1}{repl}
 the mean over the replicates for the DMSO controls for each reporter (rp) and time point (tp). 
 
 
-$$ \Large x_{diff} = \frac{
+$$ \normalsize x_{diff} = \frac{
   x - x_{DMSOmean}}{
     sqrt(sd_{DMSO}^{2} + sd_{tr}^{2} + sd_{resid}^{2})
   } $$
@@ -302,18 +301,18 @@ Statistics (II)
 ===============================================
 
 
-$$ \Large sd_{DMSO} = sd(x_{ [ rp, tr=DMSO, tp ]} ) $$
+$$ \normalsize sd_{DMSO} = sd(x_{ [ rp, tr=DMSO, tp ]} ) $$
 
 The standard error over the replicates of the DMSO controls, for each reporter and time point.
 
-$$ \Large sd_{tr} = sd(x_{ [ rp, tr, tp ]} ) $$
+$$ \normalsize sd_{tr} = sd(x_{ [ rp, tr, tp ]} ) $$
 
 The standard error over the replicates of the treatments, for each reporter, treatment and time point.
 
 Statistics (III)
 
 ===============================================
-$$ \Large sd_{resid} = sqrt( \frac{ 
+$$ \normalsize sd_{resid} = sqrt( \frac{ 
     \sum_{tp = 1}^{tp = 24} ( resid_{[repl, rp, tr]} )^2 }{
     d.f. - 1
     }  $$  
@@ -321,7 +320,7 @@ The mean residual standard error, with resid the residuals from the regression, 
 This ensures the variance from the raw data is included in the statistical analysis.
 
 Finally, for each replicate, reporter and treatment the mean difference over time (XmeanDiff) is calculated;
-$$ \Large x_{meanDiff} = \frac{ 1 }{ tp } \sum_{ tp=1 }^{ tp } x_{[ replicate, reporter, treatment ]} $$
+$$ \normalsize x_{meanDiff} = \frac{ 1 }{ tp } \sum_{ tp=1 }^{ tp } x_{[ replicate, reporter, treatment ]} $$
 A two sample one sided student's t-tests between the meanDIff values of matched DMSO control replicates and treatment replicates was performed. 
   
 Statistics: result
@@ -347,14 +346,23 @@ Sensitive low false positive statistical assay of time course imaging data.
 
 Available R-code
 ========================================================
--All the normalization formula's are available (this presentation)
--The R- code is neatly! (and this is very rare) formatted in Rmd file "norm and stats imaging data.Rmd"
--Includes code how to generate the data, or ...
-- input your own data and find out what works best for you.
+- All the normalization formula's are available (this presentation)
+- The R- code is neatly! (and this is very rare) formatted in Rmd file "norm and stats imaging data.Rmd"
+- Includes code how to generate the data, or ...
+- Input your own data and find out what works best for you.
 
 Future work
 ========================================================
 
 - In 3 dimensions: time, dose and significance of responses: 3D plots with significance shading!
 
+acknowledgements
+========================================================
+
+- Steven Hiemstra
+- Bob van de Water  
+
+
+
+Thank you for your time ! 
 
