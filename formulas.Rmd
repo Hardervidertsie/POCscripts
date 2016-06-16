@@ -2,7 +2,7 @@
 title: "statistics m&m"
 author: "Steven Wink"
 date: "June 10, 2016"
-output: html_document
+output: word_document
 ---
 
 
@@ -18,7 +18,7 @@ The following imaging measures were used; For p53BP1 and Keap1 the number of foc
 
 For model compound dataset the different imaging measures were standardized by scaling ( i.e. mean or sum of intensity measures, foci counts ), scaling was used for each plate - cell line combination;
 
-$$ x_{scaled} = \frac{x - x_{min}}{x_{max} - x_{min}}  $$
+$$ x_{\text{scaled}} = \frac{x - x_{\text{min}}}{x_{\text{max}} - x_{\text{min}}}  $$
 
 
 For the DILI compound dataset the fraction of GFP positive cells was determined to increase sensitivity of the assay. A GFP positive cell was defined as minimally twice the DMSO - control background level. No scaling was used for the GFP positive fraction measures.
@@ -29,47 +29,49 @@ The total imaging time and time intervals for the different plates and replicate
 
 The quantile normalized data was subjected to statistical significance tests with the following set of formulae;
 
-$$ x_{DMSOmean} = \frac{1}{repl} 
+the mean over the replicates for the DMSO controls for each reporter $\text{rp}$ and time point $\text{tp}$: 
+
+$$ \bar{x}_{\text{DMSO}}\text{(rp,tp)} = \frac{1}{\text{repl}} 
   \sum_{
-    repl = 1 
+    r = 1 
     }^{
-    repl
-    } X_{DMSO, [ rp, tp]} $$
-
-the mean over the replicates for the DMSO controls for each reporter (rp) and time point (tp). 
+    \text{repl}
+    } x_{\text{DMSO}} \text{(rp, tp)} $$
 
 
-$$ x_{diff} = \frac{
-  x - x_{DMSOmean}}{
-    sqrt(sd_{DMSO}^{2} + sd_{tr}^{2} + sd_{resid}^{2})
+The difference $\text{x_diff}$ between the DMSO means and treatments normalized with standard errors at each reporter $\text{rp}$, treatment $\text{tr}$ and time point $\text{tp}$. With the standard errors: 
+
+$$ {x}_{\text{diff}}\text{(repl, rp, tr, tp )} = \frac{
+  x - \bar{x}_{\text{DMSO}}}{
+    \sqrt{\sigma_{\text{DMSO}}^{2} + \sigma_{\text{DMSO, resid}}^{2} + \sigma_{\text{tr}}^{2} + \sigma_{\text{tr, resid}}^{2}}
   } $$
 
-The difference (x_diff) between the DMSO means and treatments normalized with standard errors at each reporter (rp), treatment (tr) and time point (tp). With the standard errors;
 
-$$ sd_{DMSO} = sd(x_{ [ rp, tr=DMSO, tp ]} ) $$
+The standard error over the replicates of the DMSO controls, for each reporer and time point: 
 
-The standard error over the replicates of the DMSO controls, for each reporer and time point.
+$$ \sigma_{x_{\text{DMSO}}} \text{(rp, tp )} = sd(x_{\text{DMSO}} \text{(rp, tp  ) )} $$
 
-$$ sd_{tr} = sd(x_{ [ rp, tr, tp ]} ) $$
 
-The standard error over the replicates of the treatments, for each reporter, treatment and time point.
+The standard error over the replicates , for each reporter, treatment and time point: 
 
-$$ sd_{resid} = sqrt( \frac{ 
-    \sum_{tp = 1}^{tp = 24} ( resid_{[repl, rp, tr]} )^2 }{
-    d.f. - 1
-    }  $$  
+$$ \sigma_{x}\text{(rp, tr, tp)}  = sd(x\text{( rp, tr, tp )} ) $$
 
-The mean residual standard error, with resid the residuals from the regression, for each replicate, reporter and treatment.
+The mean residual standard error, with $\text{resid}$ the residuals from the regression, for each replicate, reporter and treatment.
 This ensures the variance from the raw data is included in the statistical analysis.
 
-Finally, for each replicate, reporter and treatment the mean difference over time (XmeanDiff) is calculated;
+$$ \sigma_{\hat{x}\text{,resid}} \text{( repl, rp, tr)} = \sqrt( \frac{ 
+    \sum\limits_{tp} ( \text{resid} \text{( repl, rp, tr )} )^2 }{
+    d.f._{\text{tp}} - 1
+    } )  $$  
 
-$$ x_{meanDiff} = \frac{ 1 }{ tp } \sum_{ tp=1 }^{ tp } x_{[ replicate, reporter, treatment ]} $$
+Finally, for each replicate, reporter and treatment the mean difference over time $\text{meanDiff}$ is calculated;
 
-A two sample one sided student's t-tests between the meanDIff values of matched DMSO control replicates and treatment replicates was performed. 
+$$ x_{ \text{meanDiff}} \text{( repl, rp, tr )} = \frac{ 1 }{ tp } \sum_{ tp=1 }^{ tp } x \text{( repl, rp, tr )} $$
 
-In summary, the average and standard error for each point in time of the quantile normalized values was calculated over the replicates for DMSO. The distance of the treatments to the DMSO mean at each point was determined and normalized by three standard error terms; the standard error of the treatment replicates, the DMSO replicates and the mean residual standard error of the regression analysis.
-The mean difference over time was calculated, followed by a one-sided student's t-test to determine if the replicate treatment curves were significantly different that the DMSO control replicates.
+A two sample one sided student's t-tests between the $\text{meanDiff}$ values of matched DMSO control replicates and treatment replicates was performed. A one sided test was chosen as we are only interested in positive responses with respect to our DMSO controls. To control for the p-value gained by using a one-sided test, all p-values were were multiplied by 2.
+
+In summary, the average and standard error for each point in time of the quantile normalized values was calculated over the replicates for DMSO. The distance of the treatments to the DMSO mean at each point was determined and normalized by four standard error terms; the standard error of the treatment replicates, the DMSO replicates and the mean residual standard error of the regression analysis for the treatments and controls.
+The mean difference over time was calculated, followed by a one-sided student's t-test to determine if the replicate treatment curves were significantly different in the positive direction compared to the DMSO control replicates.
 
 
 ## Cluster analysis

@@ -419,7 +419,8 @@ zeh.path <- "C:/Users/steve_000/Documents/work/POC paper"
 dir.create("C:/Users/steve_000/Documents/work/POC paper/model fit graphs")
 # default: df 6 range 0,24
 
-pdf(file = paste(zeh.path,"/model fit graphs/model fit graphs_raw.pdf", sep =""), height = 6, width = 6)
+#pdf(file = paste(zeh.path,"/model fit graphs/model fit graphs_raw.pdf", sep =""), height = 6, width = 6)
+
 for( i in seq_along(my.data.response.list)){
   
   fm1 <- lm(minmaxNorm ~ ns(timeAfterExposure, df =6), data = my.data.response.list[[i]])
@@ -439,11 +440,11 @@ for( i in seq_along(my.data.response.list)){
     
     
     
-      p <- ggplot(data =  model.results[[i]], aes(x=timeAfterExposure, y = mod)) + geom_point() + 
-          geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = minmaxNorm, color = replID)) + 
-    ggtitle(unique(my.data.response.list[[i]]$splitL)) 
+#      p <- ggplot(data =  model.results[[i]], aes(x=timeAfterExposure, y = mod)) + geom_point() + 
+#          geom_point(data= my.data.response.list[[i]], aes(x=timeAfterExposure, y = minmaxNorm, color = replID)) + 
+#    ggtitle(unique(my.data.response.list[[i]]$splitL)) 
   
-  print(p)
+#  print(p)
 
 }
 dev.off()
@@ -462,9 +463,6 @@ head(model.results[[3]])
 model.results.df <- do.call("rbind", model.results)
 head(model.results.df)
 require(plyr)
-
-
-
 
 
 unique(model.results.df$treatment)
@@ -563,8 +561,8 @@ model.results.df <- as.data.table( model.results.df)
 # here quantile normalization:
 model.results.df
 # need same amount of points per plate
-model.results.df[, .N, by = list(cell_line, replID)]
-as.data.frame(model.results.df[ ,.N, by = list(cell_line, replID)])
+model.results.df[, .N, by = list( cell_line, replID ) ]
+as.data.frame( model.results.df[ ,.N, by = list( cell_line, replID ) ] )
 
 
 
@@ -630,7 +628,9 @@ DMSO[dose.f == 4, replID := gsub( "repl.3", "repl.12", replID)  ]
 
 
 
-DMSO.s <- DMSO[ ,  list( DMSO.mean = mean( quantileNorm ), DMSO.sd = sd( quantileNorm ) ),  
+DMSO.s <- DMSO[ ,  list( DMSO.mean = mean( quantileNorm ), 
+                         DMSO.sd = sd( quantileNorm ),
+                         DMSO.resid = sqrt( mean(resid.SD^2)) ),  
                   by = list( cell_line, treatment, timeAfterExposure) ]
 
 #treat doses of DMSO as replicates for variance stabilization, DMSO sd' s are introducing to much noise.
@@ -643,26 +643,26 @@ model.results.df.stats <- DMSO.s[ model.results.df ]
 any(is.na(model.results.df.stats))
 
 setkey(model.results.df.sd, cell_line, treatment, dose.f, timeAfterExposure )
-setkey(model.results.df.stats, cell_line, treatment, dose.f, timeAfterExposure )
+setkey(model.results.df.stats, cell_line, i.treatment, dose.f, timeAfterExposure )
 
 model.results.df.stats <- model.results.df.sd[model.results.df.stats]
 model.results.df.stats[ treatment %in% "DMSO"]
 # calculate mean difference over time (one-sided else cell death = significant:
 
-model.results.df.stats[ , meanDiff :=  (quantileNorm - DMSO.mean)  / sqrt ( ( DMSO.sd^2 + treat.sd^2 + resid.SD^2 ))  ]  # adding variances for total sd
+model.results.df.stats[ , meanDiff :=  (quantileNorm - DMSO.mean)  / sqrt ( ( DMSO.sd^2 + DMSO.resid^2 + treat.sd^2 + resid.SD^2 ))  ]  # adding variances for total sd
 
 
 
-Stats.m <- model.results.df.stats[, mean(meanDiff), by = list( cell_line, i.treatment, dose_uM, dose.f, replID  )]
+Stats.m <- model.results.df.stats[, mean(meanDiff), by = list( cell_line, treatment, dose_uM, dose.f, replID  )]
 
-Stats.m[, cell.treat.dose := paste( cell_line, i.treatment, dose.f, sep = "_")]
+Stats.m[, cell.treat.dose := paste( cell_line, treatment, dose.f, sep = "_")]
 
 
-as.data.frame (Stats.m[ cell_line == "Nrf2" & i.treatment == "DMSO"])
+as.data.frame (Stats.m[ cell_line == "Nrf2" & treatment == "DMSO"])
 
 setnames(Stats.m, "V1", "meanDiff")
 
-Stats.m[ i.treatment %in% "DMSO" , cell.treat.dose := gsub("_[0-4]{1}", "", cell.treat.dose) ]
+Stats.m[ treatment %in% "DMSO" , cell.treat.dose := gsub("_[0-4]{1}", "", cell.treat.dose) ]
 
 stats.out = alist()
 stats.out.data = alist()
@@ -675,30 +675,30 @@ for( i in seq_along( all.vars )) {
  
   
   cur.cell_line <-unique( Stats.m[  cell.treat.dose %in% all.vars[ i ], cell_line ] )
-  cur.treat <-unique( Stats.m[  cell.treat.dose %in% all.vars[ i ], i.treatment ] )
+  cur.treat <-unique( Stats.m[  cell.treat.dose %in% all.vars[ i ], treatment ] )
   subSet1 <- Stats.m[ cell.treat.dose %in% all.vars[ i ] ]
-  subSetDMSO <- Stats.m[ i.treatment %in% "DMSO" & cell_line %in% cur.cell_line ]
-  subSetDMSO <- subSetDMSO[ ,mean( meanDiff ), by = list( cell_line ,i.treatment,  dose_uM, dose.f, cell.treat.dose )] 
+  subSetDMSO <- Stats.m[ treatment %in% "DMSO" & cell_line %in% cur.cell_line ]
+  subSetDMSO <- subSetDMSO[ ,mean( meanDiff ), by = list( cell_line ,treatment,  dose_uM, dose.f, cell.treat.dose )] 
   setnames(subSetDMSO, "V1", "meanDiff")
   subSet1$replID <- NULL
   subSet <- rbind( subSetDMSO, subSet1)
   
   
   # one sided significance test
-  subSet[ , i.treatment := factor(i.treatment, levels = c( "DMSO", cur.treat ))]
+  subSet[ , treatment := factor(treatment, levels = c( "DMSO", cur.treat ))]
   #setnames(subSet, "V1", "meanDiff")
-  stats.out[[i]] <- t.test(meanDiff ~ i.treatment, alternative = "less", var.equal = TRUE, data =   subSet)
+  stats.out[[i]] <- t.test(meanDiff ~ treatment,  var.equal = TRUE, data =   subSet, alternative = "less" )
   
   m.out<- stats.out[[i]] 
 
   
   
     stats.out.data[[i]] <- data.frame(cell_line = unique(subSet$cell_line),
-                                    treatment = unique(subSet1$i.treatment),
+                                    treatment = unique(subSet1$treatment),
                                     dose_uM = unique(subSet1$dose_uM),
                                     dose.f = unique(subSet1$dose.f),
                                     diffMeans = m.out$estimate[2] - m.out$estimate[1], 
-                                    pVal = m.out$p.value)
+                                    pVal = 2 * m.out$p.value)
 
 }
 
@@ -709,8 +709,10 @@ getwd()
 save.path <- "C:/Users/steve_000/Documents/work/POC paper/"
 
 #load(paste(save.path, " freeze16052016.Rdata", sep = ""))
-write.table(file = paste(save.path, "stats.out.data.df_3sdSUM_quantile.txt", sep =""), stats.out.data.df, sep ="\t", row.names = FALSE)
+write.table(file = paste(save.path, "stats.out.data.df_3sdSUM_quantile_au.txt", sep =""), stats.out.data.df, sep ="\t", row.names = FALSE)
 #save.image(paste(save.path, "freeze16052016.Rdata"))
+
+
 ##TODO
 # time course figuur + heatmap (heatmap vervangen alleen als visueel anders)
 # stats dili compounds
@@ -830,7 +832,7 @@ stats.out.data.df[ treatment == "Etoposide" & cell_line == "p21"]
 
 model.results.df.m <- model.results.df.m[! (treatment %in% "DMSO" & dose.f == 4)]
 
-pdf(paste(save.path, "timecourses_1sided_sd3SUM_quantile.pdf", sep =""), height = 14, width = 22)
+pdf(paste(save.path, "timecourses_1sided_sd3SUM_quantile_AU.pdf", sep =""), height = 14, width = 22)
 p<-ggplot( model.results.df.m, aes(x=timeAfterExposure, y = meanQ, color = dose.f)) +
   geom_line(aes(group = dose.f ), size = 2) + theme_sharp()
 p <- p +  facet_grid( treatment~cell_line)
@@ -1262,6 +1264,8 @@ print(plot( dcr ))
 dev.off()
 save.path <- "C:/Users/steve_000/Documents/work/POC paper/"
 save.image(paste(save.path, "freeze29052016.Rdata", sep =""))
+
+load( paste( save.path, "freeze29052016.Rdata", sep =""))
 
 save.path
 ?par
